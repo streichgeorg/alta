@@ -1,5 +1,5 @@
-import { identifierExpression, numberExpression, sumExpression, subExpression,
-         productExpression, fractionExpression, functionExpression,
+import { identifier, number, sum, subtraction,
+         product, fraction, functionCall, assignment,
          isIdentifier } from './expression';
 
 const isDigit = (c) => c >= '0' && c <= '9';
@@ -16,7 +16,8 @@ const TokenTypes = {
     DIV_OPERATOR: 5,
     OPEN_PAREN: 6,
     CLOSED_PAREN: 7,
-    EOF: 8,
+    EQUAL: 8,
+    EOF: 9,
 };
 
 class Parser {
@@ -104,7 +105,8 @@ class Parser {
             '+': TokenTypes.ADD_OPERATOR,
             '-': TokenTypes.SUB_OPERATOR,
             '*': TokenTypes.MUL_OPERATOR,
-            '/': TokenTypes.DIV_OPERATOR
+            '/': TokenTypes.DIV_OPERATOR,
+            '=': TokenTypes.EQUAL,
         };
 
         if (this.currentChar() in oneCharacterTokens) {
@@ -139,9 +141,9 @@ class Parser {
 
     parseAtom() {
         if (this.testToken(TokenTypes.IDENTIFIER)) {
-            return identifierExpression(this.currentToken.value);
+            return identifier(this.currentToken.value);
         } else if (this.testToken(TokenTypes.NUMBER)) {
-            return numberExpression(this.currentToken.number);
+            return number(this.currentToken.number);
         } else if (this.testToken(TokenTypes.OPEN_PAREN)) {
             const atom = this.parseExpression();
             this.expectToken(TokenTypes.CLOSED_PAREN, 'Expected \')\'');
@@ -157,7 +159,7 @@ class Parser {
         if (isIdentifier(atom) && this.testToken(TokenTypes.OPEN_PAREN)) {
 
             if (this.testToken(TokenTypes.CLOSED_PAREN)) {
-                return functionExpression(atom.name, []);
+                return functionCall(atom.name, []);
             } else {
                 let args = [this.parseExpression()];
 
@@ -167,7 +169,7 @@ class Parser {
 
                this.expectToken(TokenTypes.CLOSED_PAREN, 'Expected \')\'');
 
-               return functionExpression(atom.name, args);
+               return functionCall(atom.name, args);
             }
         }
 
@@ -176,7 +178,7 @@ class Parser {
 
     parseUnaryOperator() {
         if (this.testToken(TokenTypes.SUB_OPERATOR)) {
-            return productExpression([numberExpression(-1), this.parseUnaryOperator()]);
+            return product([number(-1), this.parseUnaryOperator()]);
         }
 
         return this.parseFunction();
@@ -187,29 +189,42 @@ class Parser {
 
         if (pred === 1) {
             if (this.testToken(TokenTypes.ADD_OPERATOR)) {
-                return sumExpression([left, this.parseBinaryOperator(pred)]);
+                return sum([left, this.parseBinaryOperator(pred)]);
             }
 
             if (this.testToken(TokenTypes.SUB_OPERATOR)) {
-                return subExpression(left, this.parseBinaryOperator(pred));
+                return subtraction(left, this.parseBinaryOperator(pred));
             }
         }
 
         if (pred === 0) {
             if (this.testToken(TokenTypes.MUL_OPERATOR)) {
-                return productExpression([left, this.parseBinaryOperator(pred)]);
+                return product([left, this.parseBinaryOperator(pred)]);
             }
 
             if (this.testToken(TokenTypes.DIV_OPERATOR)) {
-                return fractionExpression(left, this.parseBinaryOperator(pred));
+                return fraction(left, this.parseBinaryOperator(pred));
             }
         }
 
         return left;
     }
 
+
     parseExpression() {
         return this.parseBinaryOperator(HIGHEST_PREDECENCE);
+    }
+
+    parseAssignment() {
+        const left = this.parseExpression();
+
+        if (this.testToken(TokenTypes.EQUAL)) {
+            const right = this.parseExpression();
+
+            return assignment(left, right);
+        }
+
+        return left;
     }
 
     parse(input) {
@@ -220,7 +235,7 @@ class Parser {
 
         this.peekedToken = this.nextToken();
 
-        const expr = this.parseExpression();
+        const expr = this.parseAssignment();
         this.expectToken(TokenTypes.EOF, 'Expected EOF');
 
         return expr;

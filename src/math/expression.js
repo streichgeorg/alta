@@ -1,4 +1,4 @@
-import { zip, product } from '../util';
+import * as listUtil from '../listUtil';
 
 const ExpressionTypes = {
     IDENTIFIER: 0,
@@ -9,9 +9,10 @@ const ExpressionTypes = {
     FRACTION: 5,
     POWER: 6,
     FUNCTION: 7,
+    ASSIGNMENT: 8,
 };
 
-function identifierExpression(name) {
+function identifier(name) {
     return {
         name,
 
@@ -19,7 +20,7 @@ function identifierExpression(name) {
     };
 }
 
-function numberExpression(number) {
+function number(number) {
     return {
         number,
 
@@ -27,7 +28,7 @@ function numberExpression(number) {
     };
 }
 
-function sumExpression(summands) {
+function sum(summands) {
     return {
         summands,
 
@@ -35,14 +36,14 @@ function sumExpression(summands) {
     };
 }
 
-function subExpression(left, right) {
-    return sumExpression([
+function subtraction(left, right) {
+    return sum([
         left,
-        productExpression([numberExpression(-1), right])
+        product([number(-1), right])
     ]);
 }
 
-function productExpression(factors) {
+function product(factors) {
     return {
         factors,
 
@@ -50,7 +51,7 @@ function productExpression(factors) {
     };
 }
 
-function fractionExpression(numerator, denominator) {
+function fraction(numerator, denominator) {
     return {
         numerator,
         denominator,
@@ -59,7 +60,7 @@ function fractionExpression(numerator, denominator) {
     }
 }
 
-function powerExpression(base, exponent) {
+function power(base, exponent) {
     return {
         base,
         exponent,
@@ -68,7 +69,7 @@ function powerExpression(base, exponent) {
     };
 }
 
-function functionExpression(name, args) {
+function functionCall(name, args) {
     return {
         name,
         args,
@@ -77,8 +78,17 @@ function functionExpression(name, args) {
     };
 }
 
-export { ExpressionTypes, identifierExpression, numberExpression, sumExpression, subExpression,
-         productExpression, fractionExpression, functionExpression };
+function assignment(left, right) {
+    return {
+        left,
+        right,
+
+        type: ExpressionTypes.ASSIGNMENT
+    };
+}
+
+export { ExpressionTypes, identifier, number, sum, subtraction,
+         product, fraction, functionCall, assignment };
 
 function isIdentifier(expr) {
     return expr.type === ExpressionTypes.IDENTIFIER;
@@ -108,7 +118,44 @@ function isFunction(expr) {
     return expr.type === ExpressionTypes.FUNCTION;
 }
 
-export { isIdentifier, isNumber, isSum, isProduct, isFraction, isFunction };
+function isAssignment(expr) {
+    return expr.type === ExpressionTypes.ASSIGNMENT;
+}
+
+function isFunctionDefinition(expr) {
+    return isAssignment(expr) && isFunction(expr.left) &&
+           !expr.left.args.find(arg => !isIdentifier(arg));
+}
+
+function getParameters(expr) {
+    const func = (expr) => {
+        switch (expr.type) {
+            case ExpressionTypes.IDENTIFIER:
+                return [expr.name];
+            case ExpressionTypes.SUM:
+                return expr.summands.map(getParameters)
+                                    .reduce((acc, value) => acc.concat(value));
+            case ExpressionTypes.PRODUCT:
+                return expr.factors.map(getParameters)
+                                    .reduce((acc, value) => acc.concat(value));
+            case ExpressionTypes.FRACTION:
+                return [...getParameters(expr.numerator), ...getParameters(expr.denominator)];
+            case ExpressionTypes.POWER:
+                return [...getParameters(expr.base), ...getParameters(expr.exponent)];
+            case ExpressionTypes.FUNCTION:
+                return expr.args.map(getParameters)
+                                    .reduce((acc, value) => acc.concat(value));
+            default:
+                return [];
+        }
+    }
+
+    const parameters = func(expr);
+
+    return parameters;
+}
+
+export { isIdentifier, isNumber, isSum, isProduct, isFraction, isFunction, isAssignment, isFunctionDefinition };
 
 function compareExpressions(a, b) {
     if (a.type !== b.type) {
@@ -120,7 +167,7 @@ function compareExpressions(a, b) {
             return c.length < d.length;
         }
 
-        for (let pair of zip(c, d)) {
+        for (let pair of listUtil.zip(c, d)) {
             if (!identical(...pair)) {
                 return compareExpressions(...pair);
             }
@@ -165,10 +212,19 @@ function compareExpressions(a, b) {
                 return a.args.length < b.args.length;
             }
 
-            for (let pair of zip(a.args, b.args)) {
+            for (let pair of listUtil.zip(a.args, b.args)) {
                 if (!identical(...pair)) {
                     return compareExpressions(...pair);
                 }
+            }
+
+            return true;
+        case ExpressionTypes.ASSIGNMENT:
+            if (!identical(a.left, b.left)) {
+                return compareExpressions(a.left, b.left);
+            }
+            if (!identical(a.right, b.right)) {
+                return compareExpressions(a.right, b.right);
             }
 
             return true;
@@ -192,7 +248,7 @@ function identical(a, b) {
             return false;
         }
 
-        return !zip(sortedExpressionList(c), sortedExpressionList(d))
+        return !listUtil.zip(sortedExpressionList(c), sortedExpressionList(d))
                     .find(([ e, f ]) => !identical(e, f));
     };
 
@@ -214,6 +270,9 @@ function identical(a, b) {
                    identical(a.exponent, b.exponent);
         case ExpressionTypes.FUNCTION:
             return a.name === b.name && expressionListsAreEqual(a.args, b.args);
+        case ExpressionTypes.ASSIGNMENT:
+            return identical(a.left, b.left) && 
+                   identical(a.right, b.right);
         default:
             throw 'Can\'t compare expressions';
     }
@@ -233,14 +292,10 @@ function flattenTree(isParent, key, expr) {
 
 const getFactors = expr => isProduct(expr) ? expr.factors : [expr];
 const getBase = (a) => isPower(a) ? a.base : a;
-const getExponent = (a) => isPower(a) ? a.exponent : numberExpression(1);
-
-function identicalBase(a, b) {
-    return identical(getBase(a), getBase(a));
-}
+const getExponent = (a) => isPower(a) ? a.exponent : number(1);
 
 function exponentDiff(a, b) {
-    const result = subExpression(getExponent(a), getExponent(b));
+    const result = subtraction(getExponent(a), getExponent(b));
     return result;
 }
 
@@ -252,7 +307,7 @@ function combineElements(withCoeffs, combine) {
 
         let [ head, ...tail ] = list;
         let n = tail.filter(({ coeff, expr }) => identical(expr, head.expr))
-                    .reduce((sum, { coeff }) => simplify(sumExpression([sum, coeff])), head.coeff);
+                    .reduce((s, { coeff }) => simplify(sum([s, coeff])), head.coeff);
 
         let rest = tail.filter(({ expr }) => !identical(head.expr, expr));
 
@@ -274,10 +329,10 @@ function simplifySum(expr) {
     let numerical = summands.filter(isNumber);
     let nonNumerical = summands.filter(summand => !isNumber(summand));
 
-    let number = numberExpression(numerical.reduce((acc, { number }) => acc + number, 0));
+    let num = number(numerical.reduce((acc, { number }) => acc + number, 0));
 
     if (nonNumerical.length === 0) {
-        return number;
+        return num;
     }
 
     // Combine summands
@@ -286,37 +341,37 @@ function simplifySum(expr) {
         const i = factors.findIndex(isNumber);
 
         if (i === -1) {
-            const expr = factors.length > 1 ? productExpression(factors) : factors[0];
-            return {coeff: numberExpression(1), expr};
+            const expr = factors.length > 1 ? product(factors) : factors[0];
+            return {coeff: number(1), expr};
         } else {
-            const coeff = numberExpression(factors[i].number);
+            const coeff = number(factors[i].number);
             factors.splice(i, 1);
 
-            const expr = factors.length > 1 ? productExpression(factors) : factors[0];
+            const expr = factors.length > 1 ? product(factors) : factors[0];
             return {coeff, expr};
         }
     });
 
     summands =  combineElements(withCoeffs, (n, head) => {
-        return simplify(productExpression([n, head]));
+        return simplify(product([n, head]));
     });
 
-    summands.push(number);
+    summands.push(num);
 
-    summands = summands.filter(summand => !identical(summand, numberExpression(0)));
+    summands = summands.filter(summand => !identical(summand, number(0)));
 
     if (summands.length === 0) {
-        return numberExpression(0);
+        return number(0);
     } else if (summands.length === 1) {
         return summands[0];
     } 
 
-    return sumExpression(summands);
+    return sum(summands);
 }
 
 function simplifyProduct(expr) {
     if (expr.factors.length === 0) {
-        return numberExpression(1);
+        return number(1);
     }
 
     if (expr.factors.length === 1) {
@@ -334,10 +389,10 @@ function simplifyProduct(expr) {
         let fractions = factors.filter(isFraction);
         let nonFractions = factors.filter(factor => !isFraction(factor));
 
-        let numerator = productExpression([...fractions.map(fraction => fraction.numerator), ...nonFractions]);
-        let denominator = productExpression(fractions.map(fraction => fraction.denominator));
+        let numerator = product([...fractions.map(fraction => fraction.numerator), ...nonFractions]);
+        let denominator = product(fractions.map(fraction => fraction.denominator));
 
-        return simplify(fractionExpression(numerator, denominator));
+        return simplify(fraction(numerator, denominator));
     }
 
     // Expand sums
@@ -346,12 +401,12 @@ function simplifyProduct(expr) {
 
     if (sums.length > 1) {
         let expanded = sums[0];
-        for (let sum of sums.slice(1)) {
-            let newSummands = product(expanded.summands, sum.summands).map(([ a, b ]) => {
-                return simplify(productExpression([a, b]));
+        for (let s of sums.slice(1)) {
+            let newSummands = listUtil.product(expanded.summands, s.summands).map(([ a, b ]) => {
+                return simplify(product([a, b]));
             })
 
-            expanded = sumExpression(newSummands);
+            expanded = sum(newSummands);
         }
 
         factors = [...nonSums, simplify(expanded)];
@@ -359,10 +414,10 @@ function simplifyProduct(expr) {
 
     let numerical = factors.filter(isNumber);
     let nonNumerical = factors.filter(factor => !isNumber(factor));
-    let number = numberExpression(numerical.reduce((acc, {number}) => acc * number, 1));
+    let num = number(numerical.reduce((acc, {number}) => acc * number, 1));
 
     if (nonNumerical.length === 0) {
-        return number;
+        return num;
     }
 
     const withCoeffs = nonNumerical.map(factor => {
@@ -370,22 +425,22 @@ function simplifyProduct(expr) {
     });
 
     factors = combineElements(withCoeffs, (n, head) => {
-        return simplify(powerExpression(head, n));
+        return simplify(power(head, n));
     });
 
-    factors.push(number);
+    factors.push(num);
 
-    if (factors.find(factor => identical(factor, numberExpression(0)))) {
-        return numberExpression(0);
+    if (factors.find(factor => identical(factor, number(0)))) {
+        return number(0);
     }
 
-    factors = factors.filter(factor => !identical(factor, numberExpression(1)));
+    factors = factors.filter(factor => !identical(factor, number(1)));
 
     if (factors.length === 0) {
-        return numberExpression(1);
+        return number(1);
     }
 
-    return factors.length > 1 ? productExpression(factors) : factors[0];
+    return factors.length > 1 ? product(factors) : factors[0];
 }
 
 function reduceNonNumericalFraction(numerator, denominator) {
@@ -402,9 +457,9 @@ function reduceNonNumericalFraction(numerator, denominator) {
             uniqueDenominator.splice(i, 1);
 
             if (isNumber(diff) && diff.number < 0) {
-                uniqueDenominator.push(simplify(powerExpression(base, numberExpression(-diff.number))));
-            } else if (!identical(diff, numberExpression(0))) {
-                uniqueNumerator.push(simplify(powerExpression(base, diff)));
+                uniqueDenominator.push(simplify(power(base, number(-diff.number))));
+            } else if (!identical(diff, number(0))) {
+                uniqueNumerator.push(simplify(power(base, diff)));
             }
         } else {
             uniqueNumerator.push(factor);
@@ -432,8 +487,8 @@ function simplifyFraction(expr) {
     }
 
     if (newNumerator.length > 0) {
-        numerator = simplify(productExpression(newNumerator));
-        denominator = simplify(productExpression(newDenominator));
+        numerator = simplify(product(newNumerator));
+        denominator = simplify(product(newDenominator));
     }
 
     // Reduce fraction
@@ -463,49 +518,49 @@ function simplifyFraction(expr) {
         newDenominator.push(...denominatorRest);
     }
 
-    numerator = simplify(productExpression(newNumerator));
-    denominator = simplify(productExpression(newDenominator));
+    numerator = simplify(product(newNumerator));
+    denominator = simplify(product(newDenominator));
 
-    if (identical(numerator, numberExpression(0))) {
-        return numberExpression(0);
+    if (identical(numerator, number(0))) {
+        return number(0);
     }
 
-    if (identical(denominator, numberExpression(1))) {
+    if (identical(denominator, number(1))) {
         return numerator;
     }
 
-    if (identical(denominator, numberExpression(0))) {
+    if (identical(denominator, number(0))) {
         throw 'Division by 0 is undefined';
     }
 
-    return fractionExpression(numerator, denominator);
+    return fraction(numerator, denominator);
 }
 
 function simplifyPower(expr) {
     let base = simplify(expr.base);
     let exponent = simplify(expr.exponent);
 
-    if (identical(exponent, numberExpression(0)) && identical(base, numberExpression(0))) {
+    if (identical(exponent, number(0)) && identical(base, number(0))) {
         throw '0 ^ 0 is undefined';
     }
 
-    if (identical(exponent, numberExpression(0))) {
-        return numberExpression(1);
+    if (identical(exponent, number(0))) {
+        return number(1);
     }
 
-    if (identical(exponent, numberExpression(1))) {
+    if (identical(exponent, number(1))) {
         return base;
     }
 
-    if (identical(base, numberExpression(0))) {
-        return numberExpression(0);
+    if (identical(base, number(0))) {
+        return number(0);
     }
 
-    if (identical(base, numberExpression(1))) {
-        return numberExpression(1);
+    if (identical(base, number(1))) {
+        return number(1);
     }
 
-    return powerExpression(base, exponent);
+    return power(base, exponent);
 }
 
 function simplify(expr) {

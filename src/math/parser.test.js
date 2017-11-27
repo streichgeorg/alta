@@ -8,26 +8,26 @@ expect.extend({
 });
 
 test('parses identifier correctly', () => {
-    const a = expr.identifierExpression('a');
+    const a = expr.identifier('a');
     const parsed = parse('a');
     expect(a).toBeIdenticalTo(parsed);
 });
 
 test('parses int correctly', () => {
-    const a = expr.numberExpression(1034);
+    const a = expr.number(1034);
     const parsed = parse('1034');
     expect(a).toBeIdenticalTo(parsed);
 });
 
 test('parses float correctly', () => {
-    const a = expr.numberExpression(1034.45);
+    const a = expr.number(1034.45);
     const parsed = parse('1034.45');
     expect(a).toBeIdenticalTo(parsed);
 });
 
 test('parses addition correctly', () => {
-    const a = expr.sumExpression([expr.numberExpression(10), expr.identifierExpression('a')]);
-    const b = expr.sumExpression([expr.identifierExpression('a'), expr.numberExpression(10)]);
+    const a = expr.sum([expr.number(10), expr.identifier('a')]);
+    const b = expr.sum([expr.identifier('a'), expr.number(10)]);
 
     const parsed = parse('10 + a');
     expect(a).toBeIdenticalTo(parsed);
@@ -35,23 +35,23 @@ test('parses addition correctly', () => {
 });
 
 test('parses function correctly', () => {
-    const a = expr.functionExpression('sin', [expr.identifierExpression('x')]);
+    const a = expr.functionCall('sin', [expr.identifier('x')]);
     const parsed = parse('sin(x)');
 
     expect(a).toBeIdenticalTo(parsed);
 });
 
 test('parses parentheses correctly', () => {
-    const a = expr.sumExpression([expr.numberExpression(1), expr.identifierExpression('a')]);
+    const a = expr.sum([expr.number(1), expr.identifier('a')]);
     const parsed = parse('(1 + a)');
 
     expect(a).toBeIdenticalTo(parsed);
 });
 
 test('parses expression correctly', () => {
-    const a = expr.productExpression([
-        expr.identifierExpression('a'), 
-        expr.sumExpression([expr.numberExpression(1), expr.identifierExpression('b')])
+    const a = expr.product([
+        expr.identifier('a'), 
+        expr.sum([expr.number(1), expr.identifier('b')])
     ]);
 
     const parsed = parse('a * (1 + b)')
