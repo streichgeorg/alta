@@ -1,0 +1,26 @@
+.Console {
+    min-height: 100vh;
+    min-width: 500px;
+
+    display: flex;
+    flex-direction: column;
+}
+
+.Buffer {
+    flex-grow: 1;
+}
+
+.Input {
+    height: 40px;
+    width: 100%;
+
+    display: flex;
+}
+
+.TextInput {
+    flex-grow: 3;
+}
+
+.SubmitButton {
+    flex-grow: 4;
+}

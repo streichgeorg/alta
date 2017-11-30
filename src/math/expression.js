@@ -1,4 +1,4 @@
-import * as listUtil from '../listUtil';
+import * as util from '../util';
 
 const ExpressionTypes = {
     IDENTIFIER: 0,
@@ -127,35 +127,35 @@ function isFunctionDefinition(expr) {
            !expr.left.args.find(arg => !isIdentifier(arg));
 }
 
-function getParameters(expr) {
+function getParameters(e) {
     const func = (expr) => {
         switch (expr.type) {
             case ExpressionTypes.IDENTIFIER:
                 return [expr.name];
             case ExpressionTypes.SUM:
-                return expr.summands.map(getParameters)
+                return expr.summands.map(func)
                                     .reduce((acc, value) => acc.concat(value));
             case ExpressionTypes.PRODUCT:
-                return expr.factors.map(getParameters)
+                return expr.factors.map(func)
                                     .reduce((acc, value) => acc.concat(value));
             case ExpressionTypes.FRACTION:
-                return [...getParameters(expr.numerator), ...getParameters(expr.denominator)];
+                return [...func(expr.numerator), ...func(expr.denominator)];
             case ExpressionTypes.POWER:
-                return [...getParameters(expr.base), ...getParameters(expr.exponent)];
+                return [...func(expr.base), ...func(expr.exponent)];
             case ExpressionTypes.FUNCTION:
-                return expr.args.map(getParameters)
+                return expr.args.map(func)
                                     .reduce((acc, value) => acc.concat(value));
             default:
                 return [];
         }
     }
 
-    const parameters = func(expr);
+    const parameters = func(e);
 
-    return parameters;
+    return new Set(parameters);
 }
 
-export { isIdentifier, isNumber, isSum, isProduct, isFraction, isFunction, isAssignment, isFunctionDefinition };
+export { isIdentifier, isNumber, isSum, isProduct, isFraction, isFunction, isAssignment, isFunctionDefinition, getParameters };
 
 function compareExpressions(a, b) {
     if (a.type !== b.type) {
@@ -167,7 +167,7 @@ function compareExpressions(a, b) {
             return c.length < d.length;
         }
 
-        for (let pair of listUtil.zip(c, d)) {
+        for (let pair of util.zip(c, d)) {
             if (!identical(...pair)) {
                 return compareExpressions(...pair);
             }
@@ -212,7 +212,7 @@ function compareExpressions(a, b) {
                 return a.args.length < b.args.length;
             }
 
-            for (let pair of listUtil.zip(a.args, b.args)) {
+            for (let pair of util.zip(a.args, b.args)) {
                 if (!identical(...pair)) {
                     return compareExpressions(...pair);
                 }
@@ -229,7 +229,7 @@ function compareExpressions(a, b) {
 
             return true;
         default:
-            throw 'Cannot compare expressions';
+            util.assert(false);
     }
 }
 
@@ -248,7 +248,7 @@ function identical(a, b) {
             return false;
         }
 
-        return !listUtil.zip(sortedExpressionList(c), sortedExpressionList(d))
+        return !util.zip(sortedExpressionList(c), sortedExpressionList(d))
                     .find(([ e, f ]) => !identical(e, f));
     };
 
@@ -274,11 +274,13 @@ function identical(a, b) {
             return identical(a.left, b.left) && 
                    identical(a.right, b.right);
         default:
-            throw 'Can\'t compare expressions';
+            util.assert(false);
     }
 }
 
 export { compareExpressions, identical };
+
+const InvalidExpression = util.createErrorType('ExpresssionError');
 
 function flattenTree(isParent, key, expr) {
     const func = (node) => {
@@ -402,7 +404,7 @@ function simplifyProduct(expr) {
     if (sums.length > 1) {
         let expanded = sums[0];
         for (let s of sums.slice(1)) {
-            let newSummands = listUtil.product(expanded.summands, s.summands).map(([ a, b ]) => {
+            let newSummands = util.product(expanded.summands, s.summands).map(([ a, b ]) => {
                 return simplify(product([a, b]));
             })
 
@@ -530,7 +532,7 @@ function simplifyFraction(expr) {
     }
 
     if (identical(denominator, number(0))) {
-        throw 'Division by 0 is undefined';
+        throw new InvalidExpression('Division by 0 is undefined');
     }
 
     return fraction(numerator, denominator);
@@ -541,7 +543,7 @@ function simplifyPower(expr) {
     let exponent = simplify(expr.exponent);
 
     if (identical(exponent, number(0)) && identical(base, number(0))) {
-        throw '0 ^ 0 is undefined';
+        throw new InvalidExpression('0 ^ 0 is undefined');
     }
 
     if (identical(exponent, number(0))) {
@@ -578,4 +580,4 @@ function simplify(expr) {
     }
 }
 
-export { simplify };
+export { simplify, InvalidExpression };

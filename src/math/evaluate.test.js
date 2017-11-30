@@ -38,12 +38,12 @@ test('evaluates constants correctly', () => {
 });
 
 test('evaluates parameters correctly', () => {
-    const context = evaluate.context({symbols: [evaluate.constant('x', 5)]});
+    const context = evaluate.newContext({symbols: [evaluate.constant('x', 5)]});
     expect({context, input: 'x * x - 2 * x'}).evalToWithContext(15);
 });
 
 test('evaluates multiple parameters correctly', () => {
-    const context = evaluate.context({
+    const context = evaluate.newContext({
         symbols: [ 
             evaluate.constant('x', 5),
             evaluate.constant('a', 2)
@@ -54,8 +54,8 @@ test('evaluates multiple parameters correctly', () => {
 });
 
 test('evaluates custom function correctly', () => {
-    const context = evaluate.context({
-        functions: [ 
+    const context = evaluate.newContext({
+        symbols: [ 
             evaluate.customFunc(parse('f(x) = x * x'))
         ]
     });
@@ -64,15 +64,15 @@ test('evaluates custom function correctly', () => {
 });
 
 test('nested contexts', () => {
-    const upperContext = evaluate.context({
-        functions: [ 
+    const upperContext = evaluate.newContext({
+        symbols: [ 
             evaluate.customFunc(parse('f(x) = x * x')),
         ]
     });
 
-    const context = evaluate.context({
+    const context = evaluate.newContext({
         parent: upperContext,
-        functions: [ 
+        symbols: [ 
             evaluate.customFunc(parse('g(x) = x * f(x)'))
         ]
     });

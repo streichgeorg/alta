@@ -99,3 +99,14 @@ simplifiesCorrectly('(a * a * b * c * c * 4) / (a * b * c * 5)', '(a * c * 4) / 
 test('parses function definition correctly', () => {
     expect(expr.isFunctionDefinition(parse('f(x) = x + x')));
 });
+
+test('finds correct parameters', () => {
+    const a = parse('a + g * g - 4 * h(x + d)');
+    const parameters = expr.getParameters(a);
+    const expected = new Set(['a', 'g', 'x', 'd']);
+
+    expect(parameters.size === expected.size).toBeTruthy();
+    for (const el of expected) {
+        expect(parameters.has(el)).toBeTruthy();
+    }
+});

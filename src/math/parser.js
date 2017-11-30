@@ -1,6 +1,10 @@
+import { createErrorType } from '../util';
+
 import { identifier, number, sum, subtraction,
          product, fraction, functionCall, assignment,
          isIdentifier } from './expression';
+
+const ParseError = createErrorType('ParseError');
 
 const isDigit = (c) => c >= '0' && c <= '9';
 const isLetter = (c) => (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
@@ -46,7 +50,6 @@ class Parser {
 
     parseNumber() {
         // TODO: Do the actual parsing myself
-
         const integerPart = this.readWhile(isDigit);
         const integerValue = integerPart.length > 0 ? parseInt(integerPart, 10) : 0;
 
@@ -119,7 +122,7 @@ class Parser {
         }
 
         // TODO: Implement ParserException
-        throw 'Unexpected char \'' + this.currentChar() + '\'';
+        throw new ParseError('Unexpected char \'' + this.currentChar() + '\'');
     }
 
     testToken(type) {
@@ -135,7 +138,7 @@ class Parser {
 
     expectToken(type, errorMessage) {
         if (!this.testToken(type)) {
-            throw errorMessage + ' at ' + this.input.slice(Math.max(0, this.pos - 2), this.pos + 2);
+            throw new ParseError(errorMessage + ' at ' + this.input.slice(Math.max(0, this.pos - 2), this.pos + 2));
         }
     }
 
@@ -150,7 +153,7 @@ class Parser {
             return atom;
         }
 
-        throw 'Unexpected token \'' + this.currentToken.value + '\''
+        throw new ParseError('Unexpected token \'' + this.currentToken.value + '\'');
     }
 
     parseFunction() {
@@ -228,6 +231,10 @@ class Parser {
     }
 
     parse(input) {
+        if (input.length === 0) {
+            throw new ParseError('Expected input');
+        }
+
         this.input = input;
         this.exhausted = false;
         this.finished = false;
@@ -247,4 +254,4 @@ function parse(input) {
     return defaultParser.parse(input);
 }
 
-export { Parser, defaultParser, parse };
+export { Parser, defaultParser, parse, ParseError };

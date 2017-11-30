@@ -1,6 +1,21 @@
-import * as listUtil from '../listUtil';
+import { zip, assert, createErrorType } from '../util';
+import { ExpressionTypes, InvalidExpression } from './expression';
 
-import { ExpressionTypes } from './expression';
+const EvalError = createErrorType('EvalError');
+const UndefinedSymbol = createErrorType('UndefinedSymbol');
+
+const SymbolTypes = {
+    VARIABLE: 0,
+    FUNCTION: 1,
+};
+
+function isVariable(symbol)  {
+    return symbol.symbolType === SymbolTypes.VARIABLE;
+}
+
+function isFunction(symbol)  {
+    return symbol.symbolType === SymbolTypes.FUNCTION;
+}
 
 const FunctionTypes = {
     BUILTIN: 0,
@@ -10,10 +25,12 @@ const FunctionTypes = {
 function builtinFunc(name, func, argCount=1) {
     return {
         name,
+
         value: {
             func,
             argCount,
 
+            symbolType: SymbolTypes.FUNCTION,
             type: FunctionTypes.BUILTIN
         }
     };
@@ -32,146 +49,161 @@ function customFunc(assignment) {
             name,
             argNames,
 
+            symbolType: SymbolTypes.FUNCTION,
             type: FunctionTypes.CUSTOM
         }
     };
 }
 
-const defaultFunctions = [
-    builtinFunc('sin', Math.sin),
-    builtinFunc('cos', Math.cos),
-    builtinFunc('tan', Math.tan),
-    builtinFunc('asin', Math.asin),
-    builtinFunc('acos', Math.acos),
-    builtinFunc('atan', Math.atan),
-];
 
-const SymbolTypes = {
+const VariableTypes = {
     CONSTANT: 0
 };
 
 function constant(name, value) {
     return {
         name,
+
         value: {
             value,
 
-            type: SymbolTypes.CONSTANT
+            symbolType: SymbolTypes.VARIABLE,
+            type: VariableTypes.CONSTANT
         }
     };
 }
 
-function context({parent = defaultContext, symbols = [], functions = []}) {
+function newContext({parent = defaultContext, symbols = []} = {}) {
     const symbolMap = {};
     for (let {name, value} of symbols) {
         symbolMap[name] = value;
     }
 
-    const functionMap = {};
-    for (let {name, value} of functions) {
-        functionMap[name] = value;
-    }
-
     return {
-        parent,
+        parent: parent,
         symbols: symbolMap,
-        functions: functionMap
     };
 }
 
+function hasSymbol(context, name) {
+    if (name in context.symbols) {
+        return true;
+    }
+
+    if (context.parent) {
+        return hasSymbol(context.parent, name);
+    }
+
+    return false;
+}
+
+function getSymbol(context, name) {
+    if (name in context.symbols) {
+        return context.symbols[name];
+    }
+
+    if (context.parent) {
+        return getSymbol(context.parent, name);
+    }
+
+    return null;
+}
+
 const defaultSymbols = [
+    builtinFunc('sin', Math.sin),
+    builtinFunc('cos', Math.cos),
+    builtinFunc('tan', Math.tan),
+    builtinFunc('asin', Math.asin),
+    builtinFunc('acos', Math.acos),
+    builtinFunc('atan', Math.atan),
+
     constant('pi', Math.PI),
     constant('e', Math.E),
 ];
 
-const defaultContext = context({parent: null, symbols: defaultSymbols, functions: defaultFunctions});
+const defaultContext = newContext({parent: null, symbols: defaultSymbols});
 
-function evalIdentifier(expr, currentContext) {
-    const getSymbol = (name, currentContext) => {
-        if (name in currentContext.symbols) {
-            return {hasSymbol: true, symbol: currentContext.symbols[name]};
-        }
-
-        if (currentContext.parent) {
-            return getSymbol(name, currentContext.parent);
-        }
-
-        return {hasSymbol: false, symbol: null};
+function evalIdentifier(expr, context) {
+    if (!hasSymbol(context, expr.name)) {
+        throw new UndefinedSymbol('Variable \'' + expr.name + '\' is not defined');
     }
 
-    const { hasSymbol, symbol } = getSymbol(expr.name, currentContext);
-
-    if (!hasSymbol) {
-        throw '\'' + expr.name + '\' is not defined';
+    const variable = getSymbol(context, expr.name);
+    if (!isVariable(variable)) {
+        throw new UndefinedSymbol('Variable \'' + expr.name + '\' is not defined');
     }
 
-    switch (symbol.type) {
-        case SymbolTypes.CONSTANT:
-            return symbol.value;
+    switch (variable.type) {
+        case VariableTypes.CONSTANT:
+            return variable.value;
         default:
-            throw 'Unsupported symbol type';
+            assert(false);
     }
 }
 
-function evalFunction(expr, currentContext) {
-    const getFunction = (name, currentContext)  => {
-        if (name in currentContext.functions) {
-            return {hasFunction: true, func: currentContext.functions[name]};
-        }
-        if (currentContext.parent) {
-            return getFunction(name, currentContext.parent)
-        }
-
-        return {hasFunction: false, func: null};
+function evalFunction(expr, context) {
+    if (!hasSymbol(context, expr.name)) {
+        throw new UndefinedSymbol('Function \'' + expr.name + '\' is not defined');
     }
 
-    const { hasFunction, func } = getFunction(expr.name, currentContext);
-
-    const args = expr.args.map(arg => evaluate(arg, currentContext));
-
-    if (!hasFunction) {
-        throw '\'' + expr.name + '\' is not defined';
+    const func = getSymbol(context, expr.name);
+    if (!isFunction(func)) {
+        throw new UndefinedSymbol('Function \'' + expr.name + '\' is not defined');
     }
+
+    const args = expr.args.map(arg => evaluate(arg, context));
 
     switch (func.type) {
         case FunctionTypes.BUILTIN:
             if (func.argCount !== args.length) {
-                throw 'Wrong number of arguments';
+                throw new InvalidExpression('Wrong number of arguments');
             }
 
             return func.func(...args);
         case FunctionTypes.CUSTOM:
             if (func.argNames.length !== args.length) {
-                throw 'Wrong number of arguments';
+                throw new InvalidExpression('Wrong number of arguments');
             }
 
-            const symbols = listUtil.zip(func.argNames, args).map(([ name, value ]) => constant(name, value));
+            const symbols = zip(func.argNames, args).map(([ name, value ]) => constant(name, value));
 
-            return evaluate(func.expr, context({parent: currentContext.parent, symbols}));
+            return evaluate(func.expr, newContext({parent: context, symbols}));
         default:
-            throw 'Unsupported function type';
+            assert(false);
     }
 }
 
-function evaluate(expr, currentContext=defaultContext) {
+function evaluate(expr, context=defaultContext) {
     switch (expr.type) {
         case ExpressionTypes.IDENTIFIER:
-            return evalIdentifier(expr, currentContext);
+            return evalIdentifier(expr, context);
         case ExpressionTypes.NUMBER:
             return expr.number;
         case ExpressionTypes.SUM:
-            return expr.summands.reduce((acc, value) => acc + evaluate(value, currentContext), 0);
+            return expr.summands.reduce((acc, value) => acc + evaluate(value, context), 0);
         case ExpressionTypes.PRODUCT:
-            return expr.factors.reduce((acc, value) => acc * evaluate(value, currentContext), 1);
+            return expr.factors.reduce((acc, value) => acc * evaluate(value, context), 1);
         case ExpressionTypes.FRACTION:
-            return evaluate(expr.numerator, currentContext) / evaluate(expr.denominator, currentContext);
+            const numerator = evaluate(expr.numerator, context);
+            const denominator = evaluate(expr.denominator, context);
+
+            if (denominator === 0) {
+                throw new EvalError('Division by 0');
+            }
+
+            return numerator / denominator;
         case ExpressionTypes.POWER:
-            return Math.pow(evaluate(expr.base, currentContext), evaluate(expr.exponent, currentContext));
+            return Math.pow(evaluate(expr.base, context), evaluate(expr.exponent, context));
         case ExpressionTypes.FUNCTION:
-            return evalFunction(expr, currentContext);
+            return evalFunction(expr, context);
         default:
-            throw 'Unsupported expression type ';
+            throw new EvalError('Unsupported expression type');
     }
 }
 
-export { context, customFunc, constant, evaluate };
+function evaluateFunction(args, expr, context=defaultContext) {
+    const functionContext = newContext({parent: context, symbols: args.map(arg => constant(...arg))});
+    return evaluate(expr.right, functionContext);
+}
+
+export { newContext, customFunc, constant, evaluate, evaluateFunction, EvalError, UndefinedSymbol };
