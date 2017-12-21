@@ -1,8 +1,9 @@
-import { zip, assert, createErrorType } from '../util';
+import { zip, reversed, assert, createErrorType } from '../util';
 import { ExpressionTypes, InvalidExpression } from './expression';
 
 const EvalError = createErrorType('EvalError');
 const UndefinedSymbol = createErrorType('UndefinedSymbol');
+
 
 const SymbolTypes = {
     VARIABLE: 0,
@@ -57,7 +58,8 @@ function customFunc(assignment) {
 
 
 const VariableTypes = {
-    CONSTANT: 0
+    CONSTANT: 0,
+    VARIABLE: 1
 };
 
 function constant(name, value) {
@@ -73,40 +75,98 @@ function constant(name, value) {
     };
 }
 
-function newContext({parent = defaultContext, symbols = []} = {}) {
-    const symbolMap = {};
-    for (let {name, value} of symbols) {
-        symbolMap[name] = value;
-    }
-
+function variable(name, value) {
     return {
-        parent: parent,
-        symbols: symbolMap,
+        name,
+
+        value: {
+            value,
+
+            symbolType: SymbolTypes.VARIABLE,
+            type: VariableTypes.VARIABLE
+        }
     };
 }
 
-function hasSymbol(context, name) {
-    if (name in context.symbols) {
-        return true;
+function addScope(store, symbols = []) {
+    const newScope = {};
+    for (const symbol of symbols) {
+        newScope[symbol.name] = symbol.value;
     }
 
-    if (context.parent) {
-        return hasSymbol(context.parent, name);
-    }
+    const newStore = [...store, newScope];
 
-    return false;
+    return {scopeId: currentScopeId(newStore), store: newStore};
 }
 
-function getSymbol(context, name) {
-    if (name in context.symbols) {
-        return context.symbols[name];
+function currentScopeId(store) {
+    return store.length;
+}
+
+function storeWithScope(store, scopeId = null) {
+    if (!scopeId) {
+        return {
+            store,
+            scopeId: currentScopeId(store)
+        };
     }
 
-    if (context.parent) {
-        return getSymbol(context.parent, name);
+    return {
+        scopeId,
+        store
+    };
+}
+
+function findScopeWithSymbol(scopedStore, symbolName) {
+    const { scopeId, store } = scopedStore;
+
+    assert(scopeId <= store.length);
+    const reversedIndex = reversed(store.slice(0, scopeId)).findIndex(scope => symbolName in scope);
+
+    if (reversedIndex === -1) {
+        return {hasScope: false};
     }
 
-    return null;
+    const id = scopeId - reversedIndex - 1;
+
+    return {hasScope: true, scope: store[id], index: id};
+}
+
+function setVariableValue(scopedStore, name, value) {
+    let { store, scopeId } = scopedStore;
+
+    assert(scopedStore.scopeId <= store.length);
+
+    let scope = store[scopeId];
+    assert(scope[name].symbolType === SymbolTypes.VARIABLE);
+    assert(scope[name].type === VariableTypes.VARIABLE);
+
+
+    let newScope = scope;
+    newScope[name] = {
+        value,
+        symbolType: SymbolTypes.VARIABLE,
+        type: VariableTypes.VARIABLE,
+    };
+
+    const newStore = [
+        ...store.slice(0, scopeId),
+        newScope,
+        ...store.slice(scopeId + 1)
+    ];
+
+    return newStore;
+}
+
+function hasSymbol(scopedStore, name) {
+    const { hasScope } = findScopeWithSymbol(scopedStore, name);
+    return hasScope;
+}
+
+function getSymbol(scopedStore, name) {
+    const { scope } = findScopeWithSymbol(scopedStore, name);
+
+    return scope[name];
 }
 
 const defaultSymbols = [
@@ -116,19 +176,20 @@ const defaultSymbols = [
     builtinFunc('asin', Math.asin),
     builtinFunc('acos', Math.acos),
     builtinFunc('atan', Math.atan),
+    builtinFunc('sqrt', Math.sqrt),
 
     constant('pi', Math.PI),
     constant('e', Math.E),
 ];
 
-const defaultContext = newContext({parent: null, symbols: defaultSymbols});
+const { scopeId: defaultScopeId, store: defaultStore } = addScope([], defaultSymbols);
 
-function evalIdentifier(expr, context) {
-    if (!hasSymbol(context, expr.name)) {
+function evalIdentifier(expr, scopedStore) {
+    if (!hasSymbol(scopedStore, expr.name)) {
         throw new UndefinedSymbol('Variable \'' + expr.name + '\' is not defined');
     }
 
-    const variable = getSymbol(context, expr.name);
+    const variable = getSymbol(scopedStore, expr.name);
     if (!isVariable(variable)) {
         throw new UndefinedSymbol('Variable \'' + expr.name + '\' is not defined');
     }
@@ -136,22 +197,24 @@ function evalIdentifier(expr, context) {
     switch (variable.type) {
         case VariableTypes.CONSTANT:
             return variable.value;
-        default:
+        case VariableTypes.VARIABLE:
+            return evaluate(variable.value, scopedStore);
+        default: 
             assert(false);
     }
 }
 
-function evalFunction(expr, context) {
-    if (!hasSymbol(context, expr.name)) {
+function evalFunction(expr, scopedStore) {
+    if (!hasSymbol(scopedStore, expr.name)) {
         throw new UndefinedSymbol('Function \'' + expr.name + '\' is not defined');
     }
 
-    const func = getSymbol(context, expr.name);
+    const func = getSymbol(scopedStore, expr.name);
     if (!isFunction(func)) {
         throw new UndefinedSymbol('Function \'' + expr.name + '\' is not defined');
     }
 
-    const args = expr.args.map(arg => evaluate(arg, context));
+    const args = expr.args.map(arg => evaluate(arg, scopedStore));
 
     switch (func.type) {
         case FunctionTypes.BUILTIN:
@@ -166,26 +229,27 @@ function evalFunction(expr, context) {
             }
 
             const symbols = zip(func.argNames, args).map(([ name, value ]) => constant(name, value));
+            const store  = addScope(scopedStore.store, symbols);
 
-            return evaluate(func.expr, newContext({parent: context, symbols}));
+            return evaluate(func.expr, store);
         default:
             assert(false);
     }
 }
 
-function evaluate(expr, context=defaultContext) {
+function evaluate(expr, scopedStore=storeWithScope(defaultStore, defaultScopeId)) {
     switch (expr.type) {
         case ExpressionTypes.IDENTIFIER:
-            return evalIdentifier(expr, context);
+            return evalIdentifier(expr, scopedStore);
         case ExpressionTypes.NUMBER:
             return expr.number;
         case ExpressionTypes.SUM:
-            return expr.summands.reduce((acc, value) => acc + evaluate(value, context), 0);
+            return expr.summands.reduce((acc, value) => acc + evaluate(value, scopedStore), 0);
         case ExpressionTypes.PRODUCT:
-            return expr.factors.reduce((acc, value) => acc * evaluate(value, context), 1);
+            return expr.factors.reduce((acc, value) => acc * evaluate(value, scopedStore), 1);
         case ExpressionTypes.FRACTION:
-            const numerator = evaluate(expr.numerator, context);
-            const denominator = evaluate(expr.denominator, context);
+            const numerator = evaluate(expr.numerator, scopedStore);
+            const denominator = evaluate(expr.denominator, scopedStore);
 
             if (denominator === 0) {
                 throw new EvalError('Division by 0');
@@ -193,17 +257,19 @@ function evaluate(expr, context=defaultContext) {
 
             return numerator / denominator;
         case ExpressionTypes.POWER:
-            return Math.pow(evaluate(expr.base, context), evaluate(expr.exponent, context));
+            return Math.pow(evaluate(expr.base, scopedStore), evaluate(expr.exponent, scopedStore));
         case ExpressionTypes.FUNCTION:
-            return evalFunction(expr, context);
+            return evalFunction(expr, scopedStore);
         default:
             throw new EvalError('Unsupported expression type');
     }
 }
 
-function evaluateFunction(args, expr, context=defaultContext) {
-    const functionContext = newContext({parent: context, symbols: args.map(arg => constant(...arg))});
-    return evaluate(expr.right, functionContext);
+function evaluateFunction(args, expr, scopedStore=storeWithScope(defaultStore, defaultScopeId)) {
+    const symbols = args.map(arg => constant(...arg));
+    const funcStore = addScope(scopedStore.store, symbols);
+    return evaluate(expr.right, funcStore);
 }
 
-export { newContext, customFunc, constant, evaluate, evaluateFunction, EvalError, UndefinedSymbol };
+export { defaultStore, storeWithScope, addScope, currentScopeId, customFunc, constant, variable, setVariableValue, 
+         evaluate, evaluateFunction, EvalError, UndefinedSymbol };

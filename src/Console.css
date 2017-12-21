@@ -1,9 +1,12 @@
 .Console {
     min-height: 100vh;
+    width: 700px;
     min-width: 500px;
 
     display: flex;
     flex-direction: column;
+
+    background-color: #FFFAFF;    
 }
 
 .Buffer {
@@ -11,16 +14,35 @@
 }
 
 .Input {
-    height: 40px;
-    width: 100%;
-
+    padding: 20px;
     display: flex;
 }
 
 .TextInput {
+    background: transparent;
+    outline: none;
+    border-top: transparent;
+    border-right: transparent;
+    border-left: transparent;
+    border-bottom-color: #0D1B2A;
+    margin-right: 20px;
     flex-grow: 3;
 }
 
+.TextInput:focus {
+    border-bottom-color: #17BEBB;
+}
+
 .SubmitButton {
-    flex-grow: 4;
+    background-color: #3E92CC;
+    flex-grow: 1;
+    text-decoration: none;
+    border: none;
+}
+
+.Seperator {
+    background-color: black;
+    height: 2px;
+    width: 90%;
+    margin: 0 auto;
 }

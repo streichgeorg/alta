@@ -6,7 +6,11 @@ import Console from './Console';
 
 class App extends Component {
     render() {
-        return <Console/>
+        return <div className='App'>
+            <div className='Menu'></div>
+            <Console/>
+            <div className='Buffer'></div>
+        </div>
     }
 
 }

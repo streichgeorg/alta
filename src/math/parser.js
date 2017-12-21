@@ -187,6 +187,10 @@ class Parser {
         return this.parseFunction();
     }
 
+    parsePower() {
+        
+    }
+
     parseBinaryOperator(pred) {
         const left = (pred === 0) ? this.parseUnaryOperator() : this.parseBinaryOperator(pred - 1);
 

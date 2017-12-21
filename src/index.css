@@ -1,6 +1,18 @@
+/*
+  #17BEBB cyan
+  #CC2936 red
+  #3E92CC blue
+  #FFFAFF white
+  #0D1B2A dark blue
+*/
 html {
   min-height: 100%;
   position: relative;
+}
+
+html * {
+  font-family: 'VT323', monospace !important;
+  font-size: 2rem;
 }
 
 body {
@@ -9,4 +21,21 @@ body {
   font-family: sans-serif;
 
   height: 100%;
+}
+
+input[type=text] {
+  background: transparent;
+  outline: none;
+  border-top: transparent;
+  border-right: transparent;
+  border-left: transparent;
+  border-bottom-color: #0D1B2A;
+}
+
+input[type=text]:focus {
+  border-bottom-color: #17BEBB;
+}
+
+*:focus {
+    outline: 0;
 }

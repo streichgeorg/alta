@@ -4,21 +4,22 @@ import './Console.css'
 import Card, { CardTypes }  from './Card';
 
 import { parse, ParseError } from './math/parser';
-import { constant, customFunc, newContext, evaluate, UndefinedSymbol } from './math/evaluate';
-import { simplify, InvalidExpression, isFunctionDefinition } from './math/expression';
+import { addScope, constant, customFunc, currentScopeId, defaultStore, evaluate, UndefinedSymbol, variable, storeWithScope, setVariableValue } from './math/evaluate';
+import { simplify, InvalidExpression, isFunctionDefinition, isVariableDefinition } from './math/expression';
 
 class Console extends Component {
     constructor(props) {
         super(props);
 
         this.state = {
-            context: newContext({parent: this.props.context}),
+            store: defaultStore,
             cards: [],
             inputValue: '',
         };
 
         this.onInputChanged = this.onInputChanged.bind(this);
         this.onSubmit = this.onSubmit.bind(this);
+        this.setSymbol = this.setSymbol.bind(this);
     }
 
     evalInput(input) {
@@ -39,9 +40,9 @@ class Console extends Component {
             return {card};
         }
 
-        const isValidExpression = (value, context = this.state.context) => {
+        const isValidExpression = (value, store = this.state.store, scopeId = store.length) => {
             try {
-                evaluate(value, context);
+                evaluate(value, storeWithScope(store, scopeId));
                 simplify(expr);
 
                 return {valid: true};
@@ -49,13 +50,17 @@ class Console extends Component {
                 if (e instanceof UndefinedSymbol || e instanceof InvalidExpression) {
                     return {valid: false, error: e};
                 }
+
+                throw e;
             }
         }
 
         if (isFunctionDefinition(expr)) {
             // TODO: Consider functions that have arguments other than 'x'
-            const functionContext = newContext({parent: this.state.currentContext, symbols: [constant('x', 1)]});
-            const { valid, error: exprError } = isValidExpression(expr.right, functionContext);
+            const symbols = [constant('x', 1)];
+            const { store: funcStore, scopeId: funcScope } = addScope(this.state.store, symbols);
+
+            const { valid, error: exprError } = isValidExpression(expr.right, funcStore, funcScope);
 
             if (!valid) {
                 const card = {error: exprError, cardType: CardTypes.ERROR};
@@ -65,10 +70,25 @@ class Console extends Component {
 
             const card = {expr, cardType: CardTypes.FUNCTION};
 
-            return {card, func: customFunc(expr)};
+            return {card, symbol: customFunc(expr)};
         }
 
-        const { valid, exprError } = isValidExpression(expr);
+        if (isVariableDefinition(expr)) {
+            const { valid, error: exprError } = isValidExpression(expr.right);
+
+            if (!valid) {
+                const card = {error: exprError, cardType: CardTypes.ERROR};
+
+                return {card}
+            }
+
+            const name = expr.left.name;
+            const card = {name, expr: expr.right, cardType: CardTypes.VARIABLE};
+
+            return {card, symbol: variable(name, expr.right)};
+        }
+
+        const { valid, error: exprError } = isValidExpression(expr);
 
         if (!valid) {
             const card = {error: exprError, cardType: CardTypes.ERROR};
@@ -81,23 +101,30 @@ class Console extends Component {
     }
 
     stateWithNewCard(input) {
-        const {card, func = null} = this.evalInput(input);
+        const {card, symbol = null} = this.evalInput(input);
 
-        let context = this.state.context;
+        let newStore = this.state.store;
+        let newCard = {...card, scopeId: currentScopeId(this.state.store)};
 
-        card.context = context;
-
-        if (func) {
-            context = newContext({parent: context, symbols: [func]});
+        if (symbol) {
+            newStore = addScope(this.state.store, [symbol]).store;
         }
 
-        const cards = [...this.state.cards, card];
+        const cards = [...this.state.cards, newCard];
+
 
         return {
             ...this.state,
-            context,
-            cards
+            cards,
+            store: newStore
         };
+    }
+
+    setSymbol(scopeId, name, value) {
+        this.setState({
+            ...this.state,
+            store: setVariableValue(storeWithScope(this.state.store, scopeId), name, value)
+        });
     }
 
     onInputChanged(e) {
@@ -117,7 +144,14 @@ class Console extends Component {
     }
 
     render() {
-        const cards = this.state.cards.map((card, i) => <Card key={i} state={card}/>);
+        const cards = this.state.cards.map((card, i) =>
+            <div key={i}>
+                {i !== 0 && 
+                    <div className='Seperator'></div>
+                }
+                <Card store={this.state.store} setSymbol={this.setSymbol} {...card}/>
+            </div>
+        );
 
         return <div className='Console'>
             {cards}
@@ -125,7 +159,7 @@ class Console extends Component {
             <div className='Buffer'></div>
 
             <div className='Input'>
-                <input className='TextInput' type='text' value={this.state.inputValue} onChange={this.onInputChanged} />
+                <input className='TextInput' type='text' spellcheck='false' value={this.state.inputValue} onChange={this.onInputChanged} />
                 <input className='SubmitButton' type='button' value='Submit' onClick={this.onSubmit} />
             </div>
         </div>

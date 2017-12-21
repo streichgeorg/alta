@@ -127,6 +127,10 @@ function isFunctionDefinition(expr) {
            !expr.left.args.find(arg => !isIdentifier(arg));
 }
 
+function isVariableDefinition(expr) {
+    return isAssignment(expr) && isIdentifier(expr.left);
+}
+
 function getParameters(e) {
     const func = (expr) => {
         switch (expr.type) {
@@ -155,7 +159,7 @@ function getParameters(e) {
     return new Set(parameters);
 }
 
-export { isIdentifier, isNumber, isSum, isProduct, isFraction, isFunction, isAssignment, isFunctionDefinition, getParameters };
+export { isIdentifier, isNumber, isSum, isProduct, isFraction, isFunction, isAssignment, isFunctionDefinition, isVariableDefinition, getParameters };
 
 function compareExpressions(a, b) {
     if (a.type !== b.type) {
@@ -565,6 +569,10 @@ function simplifyPower(expr) {
     return power(base, exponent);
 }
 
+function simplifyFunction(expr) {
+    return expr;
+}
+
 function simplify(expr) {
     switch(expr.type) {
         case ExpressionTypes.SUM:
@@ -581,3 +589,65 @@ function simplify(expr) {
 }
 
 export { simplify, InvalidExpression };
+
+const Predecence = {
+    NONE: 0,
+    SUM: 1,
+    PRODUCT: 2,
+    POWER: 3
+};
+
+function expressionToString(expr) {
+    const inParens = (str) => {
+        return '(' + str + ')';
+    }
+
+    const exprListToString = (seperator, list, pred) => {
+        const str = list.slice(1).reduce((acc, el) => {
+            return acc + seperator + func(el, pred);
+        }, func(list[0], pred));
+
+        return str;
+    }
+
+    const func = (expr, predecence) => {
+        switch(expr.type) {
+            case ExpressionTypes.IDENTIFIER: {
+                return expr.name;
+            }
+            case ExpressionTypes.NUMBER: {
+                return `${expr.number}`;
+            }
+            case ExpressionTypes.SUM: {
+                const str = exprListToString(' + ', expr.summands, Predecence.SUM);
+                return (predecence >= Predecence.SUM) ? inParens(str) : str;
+            }
+            case ExpressionTypes.PRODUCT: {
+                const str = exprListToString(' * ', expr.factors, Predecence.PRODUCT);
+                return (predecence >= Predecence.PRODUCT) ? inParens(str) : str;
+            }
+            case ExpressionTypes.FRACTION: {
+                const str = func(expr.numerator, Predecence.POWER) + ' / ' + func(expr.denominator, Predecence.POWER);
+                return (predecence >= Predecence.PRODUCT) ? inParens(str) : str;
+            }
+            case ExpressionTypes.POWER: {
+                const str = func(expr.base, Predecence.POWER) + ' ^ ' + func(expr.exponent, Predecence.POWER);
+
+                // TODO: The parentheses don't have to be written in every case where predecence >= Predecence.POWER
+                return (predecence >= Predecence.POWER) ? inParens(str) : str;
+            }
+            case ExpressionTypes.FUNCTION: {
+                return `${expr.name}(${exprListToString(', ', expr.args, Predecence.NONE)})`;
+            }
+            case ExpressionTypes.ASSIGNMENT: {
+                return expressionToString(expr.left) + ' = ' + expressionToString(expr.right);
+            }
+            default:
+                util.assert(false);
+        }
+    }
+
+    return func(expr, Predecence.NONE);
+}
+
+export { expressionToString };

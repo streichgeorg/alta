@@ -1,0 +1,12 @@
+.App {
+    background-color: #0D1B2A;
+    display: flex;
+}
+
+.Menu {
+    flex-grow: 1;
+}
+
+.Buffer {
+    flex-grow: 1;
+}

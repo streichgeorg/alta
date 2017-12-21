@@ -4,45 +4,111 @@ import './Card.css';
 
 import FunctionPlot from './FunctionPlot';
 
-import { evaluate, evaluateFunction, EvalError } from './math/evaluate';
+import { assert } from './util';
+import { parse, ParseError } from './math/parser';
+import { storeWithScope, evaluate, evaluateFunction, EvalError, UndefinedSymbol } from './math/evaluate';
+import { expressionToString, simplify } from './math/expression';
 
 const CardTypes = {
     EXPRESSION: 0,
     FUNCTION: 1,
-    ERROR: 2,
+    VARIABLE: 2,
+    ERROR: 3,
 };
 
-class Card extends Component {
+class VariableCard extends Component {
     constructor(props) {
         super(props);
 
-        this.state = props.state;
+        this.state = {
+            inputValue: expressionToString(props.expr),
+            expr: props.expr
+        };
+
+        this.onChange = this.onChange.bind(this);
     }
 
-    renderError() {
-        return <div>{this.state.error.message}</div>
+    onChange(e) {
+        const inputValue = e.target.value;
+        let expr = null;
+
+        try {
+            expr = simplify(parse(e.target.value));
+            evaluate(expr, storeWithScope(this.props.store, this.props.scopeId));
+
+            this.props.setSymbol(this.props.scopeId, this.props.name, expr);
+        } catch (e) {
+            if ((e instanceof EvalError || e instanceof UndefinedSymbol)) {
+                // TODO: Maybe display this to the user
+                console.log(e);
+            } else if (!(e instanceof ParseError)) { // Ignore parse errors
+                throw e;
+            }
+        }
+
+        this.setState({
+            ...this.state,
+            inputValue,
+            expr
+        });
+    }
+
+    render() {
+        let result = null;
+        if (this.state.expr) {
+            try {
+                result = '' + evaluate(this.state.expr, storeWithScope(this.props.store, this.props.scopeId));
+            } catch (e) {}
+        }
+
+        return <div className='Card'>
+            <a>{this.props.name} = </a>
+            <input type='text' value={this.state.inputValue} onChange={this.onChange} />
+            { (result !== null && result !== this.state.inputValue.trim()) &&
+                <a> = {result}</a>
+            }
+        </div>
+    }
+}
+
+class Card extends Component {
+    renderError(e) {
+        return <div className='Card' >{e.message}</div>
     }
 
     renderExpression() {
         try {
-            const result = evaluate(this.state.expr, this.state.context);
-            return <div className='ExpressionCard'>{result}</div>;
+            const result = evaluate(this.props.expr, storeWithScope(this.props.store, this.props.scopeId));
+            const str = expressionToString(this.props.expr);
+            return <div className='Card'>{str} = {result}</div>;
         } catch (e) {
             if (e instanceof EvalError) {
                 return this.renderError(e);
+            } else {
+                throw e;
             }
         }
     }
 
-    renderFunction(func) {
-        return <FunctionPlot domain={{x: [-10, 10], y: [-10, 10]}} context={this.state.context} func={this.state.expr}/>;
+    renderFunction() {
+        // TODO: Consider params other than x
+        const func = x => evaluateFunction([['x', x]], this.props.expr, storeWithScope(this.props.store, this.props.scopeId));
+        const str = expressionToString(this.props.expr);
+        return <div>
+            <div className='FunctionTitle'>{str}</div>
+            <FunctionPlot domain={{x: [-10, 10], y: [-10, 10]}}  func={func}/>
+        </div>
+    }
+
+    renderVariable() {
+        return <VariableCard {...this.props}/>
     }
 
     render() {
         let inner;
-        switch (this.state.cardType) {
+        switch (this.props.cardType) {
             case CardTypes.ERROR:
-                inner = this.renderError();
+                inner = this.renderError(this.props.error);
                 break;
             case CardTypes.EXPRESSION:
                 inner = this.renderExpression();
@@ -50,9 +116,14 @@ class Card extends Component {
             case CardTypes.FUNCTION:
                 inner = this.renderFunction();
                 break;
+            case CardTypes.VARIABLE:
+                inner = this.renderVariable();
+                break
+            default:
+                assert(false);
         }
 
-        return <div className='Card'>{inner}</div>;
+        return <div>{inner}</div>;
     }
 }
 

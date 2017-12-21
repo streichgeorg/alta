@@ -4,15 +4,12 @@ import Dimensions from 'react-dimensions';
 import { range } from './util';
 
 // TODO: Better pass a standalone js function, that would be much more efficient
-import { evaluateFunction, EvalError } from './math/evaluate';
-
 const Orientation = {
     HORIZONTAL: true,
     VERTICAL: false,
 };
 
 const addVec = ([ x1, y1 ], [ x2, y2]) => [x1 + x2, y1 + y2];
-const invVec = ([ x, y ]) => [-x, -y];
 const mulVec = ([ x, y ], a) => [x * a, y * a];
 const fromOrientation = (orientation) => (orientation === Orientation.HORIZONTAL) ? [1, 0] : [0, 1];
 const mapToDomain = (from, to, value) => {
@@ -43,8 +40,6 @@ const Line = ({transform = p => p, start, end, width, color='black'}) => {
 const Axis = ({transform, originPos, orientation, size, origin, domain, labelDistance }) => {
     const offset = orientation ? originPos[1] : originPos[0];
 
-    const otherOffset = orientation ? originPos[0] : originPos[1];
-    const minDistance = 0.05;
     const firstLabel = mapToDomain(domain, [0, 1], domain[0] - domain[0] % labelDistance);
     const numLabels = Math.ceil((domain[1] - domain[0]) / labelDistance) + 1;
     const screenLabelDistance = labelDistance / (domain[1] - domain[0]);
@@ -77,7 +72,6 @@ const Axis = ({transform, originPos, orientation, size, origin, domain, labelDis
 
 const Grid = ({ transform, domain, distance }) => {
     const DirectionalGrid = ({ transform, orientation, domain, distance }) => {
-        const firstLine = domain[0] - domain[0] % distance;
         const numLines = Math.ceil((domain[1] - domain[0]) / distance) + 1;
         const screenDistance = distance / (domain[1] - domain[0]);
 
@@ -117,7 +111,7 @@ const Path = ({ transform, domain, points, width, color='black', clipPath=null})
         return acc + `L ${point[0]} ${point[1]}`
     }, `M ${screenPoints[0][0]} ${screenPoints[0][1]}`)
 
-    return <path d={path} fill='none' stroke={color} {...clipPath ? {clipPath} : {}}/>
+    return <path d={path} fill='none' stroke={color} strokeWidth={width} {...clipPath ? {clipPath} : {}}/>
 }
 
 class FunctionPlot extends Component {
@@ -132,31 +126,20 @@ class FunctionPlot extends Component {
     render() {
         const containerWidth = this.props.containerWidth;
 
-        const containerStyle = {
-            width: containerWidth,
-            height: containerHeight,
-        };
-
         const { numSamples = 500, propsDomain = [-10, 10] } = this.props;
 
         const xDomain = propsDomain;
 
         const segmentLength = (xDomain[1] - xDomain[0]) / numSamples;
 
-        const func = x => evaluateFunction([['x', x]], this.props.func, this.props.context);
-
         const dataPoints = range(0, numSamples + 1).map(i => {
             try {
                 const x = xDomain[0] + segmentLength * i;
-                const y = func(x);
+                const y = this.props.func(x);
 
                 return [x, y];
             } catch (e) {
-                if (e instanceof EvalError) {
-                    return null;
-                }
-
-                throw e;
+                return null;
             }
         }).filter(el => el != null);
 
@@ -164,7 +147,7 @@ class FunctionPlot extends Component {
             return [Math.min(min, y), Math.max(max, y)];
         }, [0, 0]);
 
-        const yDomain = [Math.max(xDomain[0], min), Math.min(xDomain[1], max)];
+        const yDomain = [Math.max(xDomain[0], min) - 1.0, Math.min(xDomain[1], max) + 1.0];
         const domain = {x: xDomain, y: yDomain};
 
         const plotWidth = containerWidth - 200;
@@ -185,7 +168,7 @@ class FunctionPlot extends Component {
 
         const clipMargin = 5;
 
-        return <div style={containerStyle}>
+        return <div>
             <svg width={containerWidth} height={containerHeight}>
                 <defs>
                     <clipPath id='clip'>
@@ -217,62 +200,12 @@ class FunctionPlot extends Component {
                         domain={domain}
                         points={dataPoints}
                         width={2.5}
+                        color={'#CC2936'}
                         />
                 </g>
             </svg>
         </div>
     }
-
-    // render() {
-        // const { numSamples = 300, start: propsStart = -10, high: propsEnd = 10} = this.props;
-// 
-        // const start = propsStart + this.state.delta;
-        // const end = propsEnd + this.state.delta;
-// 
-        // const segmentLength = (end - start) / numSamples;
-// 
-        // const func = x => evaluateFunction([['x', x]], this.props.func, this.props.context);
-// 
-        // const dataPoints = range(0, numSamples + 1).map(i => {
-            // try {
-                // const x = start + segmentLength * i;
-                // const y = func(x);
-// 
-                // return {x, y};
-            // } catch (e) {
-                // if (e instanceof EvalError) {
-                    // return null;
-                // }
-// 
-                // throw e;
-            // }
-        // }).filter(el => el != null);
-
-        // const [ min, max ] = dataPoints.reduce(([ min, max ], { y }) => {
-            // return [Math.min(min, y), Math.max(max, y)];
-        // }, [0, 0]);
-// 
-        // const domainWidth = end - start;
-        // const domainHeight = max - min;
-// 
-        // const aspectRatio = plotHeight / plotWidth;
-// 
-        // const elementWidth = this.props.containerWidth;
-        // const elementHeight = this.props.containerWidth;
-// 
-        // const plotWidth = elementWidth * 0.8;
-        // const plotHeight = plotWidth;
-// 
-        // const center = [plotWidth / 2, plotHeight / 2];
-// 
-        // return <svg xwidth={elementWidth} height={elementHeight}>
-            // <Axis 
-                // originPos={center}
-                // orientation={Orientation.HORIZONTAL}
-                // length={100}
-                // origin={[0, 0]}/>
-        // </svg>
-    // }
 }
 
 export default Dimensions()(FunctionPlot);

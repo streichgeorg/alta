@@ -24,15 +24,16 @@ function product(a, b) {
 }
 
 function reversed(list) {
-    let result = 0;
-    for (let i = list.length; i >= 0; i--) {
+    let result = [];
+
+    for (let i = list.length - 1; i >= 0; i--) {
         result.push(list[i]);
     }
 
     return result;
 }
 
-export { zip, range, product };
+export { zip, range, product, reversed };
 
 function createErrorType(name, init) {
   function E(message) {

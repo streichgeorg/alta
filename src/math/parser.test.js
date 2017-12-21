@@ -34,6 +34,13 @@ test('parses addition correctly', () => {
     expect(b).toBeIdenticalTo(parsed);
 });
 
+test('parses addition correctly', () => {
+    const a = expr.sum([expr.sum([expr.identifier('a'), expr.identifier('b')]), expr.identifier('c')]);
+
+    const parsed = parse('a + b + c');
+    expect(a).toBeIdenticalTo(parsed);
+});
+
 test('parses function correctly', () => {
     const a = expr.functionCall('sin', [expr.identifier('x')]);
     const parsed = parse('sin(x)');
