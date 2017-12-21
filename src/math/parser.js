@@ -1,6 +1,6 @@
 import { createErrorType } from '../util';
 
-import { identifier, number, sum, subtraction,
+import { identifier, number, sum, subtraction, power,
          product, fraction, functionCall, assignment,
          isIdentifier } from './expression';
 
@@ -18,10 +18,11 @@ const TokenTypes = {
     SUB_OPERATOR: 3,
     MUL_OPERATOR: 4,
     DIV_OPERATOR: 5,
-    OPEN_PAREN: 6,
-    CLOSED_PAREN: 7,
-    EQUAL: 8,
-    EOF: 9,
+    POWER_OPERATOR: 6,
+    OPEN_PAREN: 7,
+    CLOSED_PAREN: 8,
+    EQUAL: 9,
+    EOF: 10,
 };
 
 class Parser {
@@ -109,6 +110,7 @@ class Parser {
             '-': TokenTypes.SUB_OPERATOR,
             '*': TokenTypes.MUL_OPERATOR,
             '/': TokenTypes.DIV_OPERATOR,
+            '^': TokenTypes.POWER_OPERATOR,
             '=': TokenTypes.EQUAL,
         };
 
@@ -188,38 +190,53 @@ class Parser {
     }
 
     parsePower() {
-        
-    }
+        let left = this.parseUnaryOperator();
 
-    parseBinaryOperator(pred) {
-        const left = (pred === 0) ? this.parseUnaryOperator() : this.parseBinaryOperator(pred - 1);
-
-        if (pred === 1) {
-            if (this.testToken(TokenTypes.ADD_OPERATOR)) {
-                return sum([left, this.parseBinaryOperator(pred)]);
-            }
-
-            if (this.testToken(TokenTypes.SUB_OPERATOR)) {
-                return subtraction(left, this.parseBinaryOperator(pred));
-            }
-        }
-
-        if (pred === 0) {
-            if (this.testToken(TokenTypes.MUL_OPERATOR)) {
-                return product([left, this.parseBinaryOperator(pred)]);
-            }
-
-            if (this.testToken(TokenTypes.DIV_OPERATOR)) {
-                return fraction(left, this.parseBinaryOperator(pred));
-            }
+        if (this.testToken(TokenTypes.POWER_OPERATOR)) {
+            return power(left, this.parsePower());
         }
 
         return left;
     }
 
+    parseProduct() {
+        let expr = this.parsePower();
+
+        while (this.testToken(TokenTypes.MUL_OPERATOR) || this.testToken(TokenTypes.DIV_OPERATOR)) {
+            let operator = this.currentToken.type;
+            let nextPower = this.parsePower();
+
+            if (operator === TokenTypes.MUL_OPERATOR) {
+                expr = product([expr, nextPower]);
+            } else {
+                expr = fraction(expr, nextPower);
+            }
+        }
+
+        return expr;
+    }
+
+    parseSum() {
+        let expr = this.parseProduct();
+
+        while (this.testToken(TokenTypes.ADD_OPERATOR), this.testToken(TokenTypes.SUB_OPERATOR)) {
+            let operator = this.currentToken.type;
+            let nextProduct = this.parseProduct();
+
+            if (operator === TokenTypes.ADD_OPERATOR) {
+                expr = sum([expr, nextProduct]);
+            } else {
+                expr = subtraction(expr, nextProduct);
+            }
+        }
+
+        return expr;
+    }
+
+
 
     parseExpression() {
-        return this.parseBinaryOperator(HIGHEST_PREDECENCE);
+        return this.parseSum();
     }
 
     parseAssignment() {

@@ -4,7 +4,7 @@ import './Console.css'
 import Card, { CardTypes }  from './Card';
 
 import { parse, ParseError } from './math/parser';
-import { addScope, constant, customFunc, currentScopeId, defaultStore, evaluate, UndefinedSymbol, variable, storeWithScope, setVariableValue } from './math/evaluate';
+import { addScope, constant, customFunc, currentScopeId, defaultStore, evaluate, UndefinedSymbol, variable, storeWithScope, setVariableValue, EvalError } from './math/evaluate';
 import { simplify, InvalidExpression, isFunctionDefinition, isVariableDefinition } from './math/expression';
 
 class Console extends Component {
@@ -29,11 +29,14 @@ class Console extends Component {
             } catch (e) {
                 if (e instanceof ParseError) {
                     return {hasError: true, error: e};
+                } else {
+                    throw e;
                 }
             }
         }
 
         const { expr, parseError, hasError = false } = parseInput(input);
+        console.log(expr);
 
         if (hasError) {
             const card = {error: parseError, cardType: CardTypes.ERROR};
@@ -49,9 +52,12 @@ class Console extends Component {
             } catch (e) {
                 if (e instanceof UndefinedSymbol || e instanceof InvalidExpression) {
                     return {valid: false, error: e};
+                } else if (e instanceof EvalError) {
+                    // Eval errors get handled by the cards themselves
+                    return {valid: true};
+                } else {
+                    throw e;
                 }
-
-                throw e;
             }
         }
 

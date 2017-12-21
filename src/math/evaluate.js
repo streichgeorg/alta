@@ -257,6 +257,11 @@ function evaluate(expr, scopedStore=storeWithScope(defaultStore, defaultScopeId)
 
             return numerator / denominator;
         case ExpressionTypes.POWER:
+            let base = evaluate(expr.base, scopedStore);
+            let exponent = evaluate(expr.exponent, scopedStore);
+            if (base < 0 && exponent % 1 !== 0)  {
+                throw new EvalError('Non Integer exponent with a negative base');
+            }
             return Math.pow(evaluate(expr.base, scopedStore), evaluate(expr.exponent, scopedStore));
         case ExpressionTypes.FUNCTION:
             return evalFunction(expr, scopedStore);

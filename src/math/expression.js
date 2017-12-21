@@ -88,7 +88,7 @@ function assignment(left, right) {
 }
 
 export { ExpressionTypes, identifier, number, sum, subtraction,
-         product, fraction, functionCall, assignment };
+         product, fraction, power, functionCall, assignment };
 
 function isIdentifier(expr) {
     return expr.type === ExpressionTypes.IDENTIFIER;
@@ -159,7 +159,7 @@ function getParameters(e) {
     return new Set(parameters);
 }
 
-export { isIdentifier, isNumber, isSum, isProduct, isFraction, isFunction, isAssignment, isFunctionDefinition, isVariableDefinition, getParameters };
+export { isIdentifier, isNumber, isSum, isProduct, isFraction, isPower, isFunction, isAssignment, isFunctionDefinition, isVariableDefinition, getParameters };
 
 function compareExpressions(a, b) {
     if (a.type !== b.type) {
