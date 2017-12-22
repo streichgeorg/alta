@@ -149,9 +149,15 @@ class FunctionPlot extends Component {
 
         const [ min, max ] = dataPoints.reduce(([ min, max ], [ _, y ]) => {
             return [Math.min(min, y), Math.max(max, y)];
-        }, [0, 0]);
+        }, [Number.MAX_VALUE, Number.MIN_VALUE]);
 
-        const yDomain = [Math.max(xDomain[0], min) - 1.0, Math.min(xDomain[1], max) + 1.0];
+
+        const yDomain = [Math.max(xDomain[0], Math.min(0, min)), Math.min(xDomain[1], Math.max(0, max))];
+        if (Math.abs(min - max)) {
+            yDomain[0] -= 1;
+            yDomain[1] += 1;
+        }
+
         const domain = {x: xDomain, y: yDomain};
 
         const plotWidth = containerWidth - 200;

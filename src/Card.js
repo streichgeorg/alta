@@ -6,7 +6,8 @@ import FunctionPlot from './FunctionPlot';
 
 import { assert } from './util';
 import { parse, ParseError } from './math/parser';
-import { storeWithScope, evaluate, evaluateFunction, EvalError, UndefinedSymbol } from './math/evaluate';
+import { evaluate, evaluateFunction, EvalError, UndefinedSymbol } from './math/evaluate';
+import { variable } from './math/symbolStore';
 import { expressionToString, simplify } from './math/expression';
 
 const CardTypes = {
@@ -32,13 +33,15 @@ class VariableCard extends Component {
         const inputValue = e.target.value;
         let expr = null;
 
+        console.log(this.props.storePosition);
+
         try {
             let parsed = parse(e.target.value);
-            evaluate(parsed, storeWithScope(this.props.store, this.props.scopeId));
+            evaluate(parsed, this.props.store);
 
             expr = simplify(parsed);
 
-            this.props.setSymbol(this.props.scopeId, this.props.name, expr);
+            this.props.setSymbol(this.props.storePosition, this.props.name, variable(expr));
         } catch (e) {
             if ((e instanceof EvalError || e instanceof UndefinedSymbol)) {
                 // TODO: Maybe display this to the user
@@ -59,7 +62,7 @@ class VariableCard extends Component {
         let result = null;
         if (this.state.expr) {
             try {
-                result = '' + evaluate(this.state.expr, storeWithScope(this.props.store, this.props.scopeId));
+                result = '' + evaluate(this.state.expr, this.props.store);
             } catch (e) {}
         }
 
@@ -80,7 +83,7 @@ class Card extends Component {
 
     renderExpression() {
         try {
-            const result = evaluate(this.props.expr, storeWithScope(this.props.store, this.props.scopeId));
+            const result = evaluate(this.props.expr, this.props.store);
             const str = expressionToString(this.props.expr);
             return <div className='Card'>{str} = {result}</div>;
         } catch (e) {
@@ -94,7 +97,7 @@ class Card extends Component {
 
     renderFunction() {
         // TODO: Consider params other than x
-        const func = x => evaluateFunction([['x', x]], this.props.expr, storeWithScope(this.props.store, this.props.scopeId));
+        const func = x => evaluateFunction([['x', x]], this.props.expr, this.props.store);
         const str = expressionToString(this.props.expr);
         return <div>
             <div className='FunctionTitle'>{str}</div>

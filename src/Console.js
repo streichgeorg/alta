@@ -4,8 +4,9 @@ import './Console.css'
 import Card, { CardTypes }  from './Card';
 
 import { parse, ParseError } from './math/parser';
-import { addScope, constant, customFunc, currentScopeId, defaultStore, evaluate, UndefinedSymbol, variable, storeWithScope, setVariableValue, EvalError } from './math/evaluate';
+import { defaultStore, evaluate, UndefinedSymbol, EvalError, evaluateFunction } from './math/evaluate';
 import { simplify, InvalidExpression, isFunctionDefinition, isVariableDefinition } from './math/expression';
+import { SymbolStore, funcFromAssignment, variableFromAssignment, constant } from './math/symbolStore';
 
 class Console extends Component {
     constructor(props) {
@@ -42,9 +43,9 @@ class Console extends Component {
             return {card};
         }
 
-        const isValidExpression = (value, store = this.state.store, scopeId = store.length) => {
+        const isValidExpression = (value, store = this.state.store) => {
             try {
-                evaluate(value, storeWithScope(store, scopeId));
+                evaluate(value, store);
                 simplify(expr);
 
                 return {valid: true};
@@ -62,10 +63,10 @@ class Console extends Component {
 
         if (isFunctionDefinition(expr)) {
             // TODO: Consider functions that have arguments other than 'x'
-            const symbols = [constant('x', 1)];
-            const { store: funcStore, scopeId: funcScope } = addScope(this.state.store, symbols);
+            const symbols = [['x', constant(1)]];
+            const funcStore = this.state.store.addScope(symbols);
 
-            const { valid, error: exprError } = isValidExpression(expr.right, funcStore, funcScope);
+            const { valid, error: exprError } = isValidExpression(expr.right, funcStore);
 
             if (!valid) {
                 const card = {error: exprError, cardType: CardTypes.ERROR};
@@ -75,7 +76,7 @@ class Console extends Component {
 
             const card = {expr, cardType: CardTypes.FUNCTION};
 
-            return {card, symbol: customFunc(expr)};
+            return {card, symbol: funcFromAssignment(expr)};
         }
 
         if (isVariableDefinition(expr)) {
@@ -90,7 +91,7 @@ class Console extends Component {
             const name = expr.left.name;
             const card = {name, expr: expr.right, cardType: CardTypes.VARIABLE};
 
-            return {card, symbol: variable(name, expr.right)};
+            return {card, symbol: variableFromAssignment(expr)};
         }
 
         const { valid, error: exprError } = isValidExpression(expr);
@@ -109,10 +110,10 @@ class Console extends Component {
         const {card, symbol = null} = this.evalInput(input);
 
         let newStore = this.state.store;
-        let newCard = {...card, scopeId: currentScopeId(this.state.store)};
+        let newCard = {...card, storePosition: this.state.store.scopes.length};
 
         if (symbol) {
-            newStore = addScope(this.state.store, [symbol]).store;
+            newStore = this.state.store.addScope([symbol]);
         }
 
         const cards = [...this.state.cards, newCard];
@@ -125,10 +126,10 @@ class Console extends Component {
         };
     }
 
-    setSymbol(scopeId, name, value) {
+    setSymbol(storePosition, name, value) {
         this.setState({
             ...this.state,
-            store: setVariableValue(storeWithScope(this.state.store, scopeId), name, value)
+            store: this.state.store.setSymbol(storePosition, name, value)
         });
     }
 
@@ -149,12 +150,13 @@ class Console extends Component {
     }
 
     render() {
+        console.log(this.state);
         const cards = this.state.cards.map((card, i) =>
             <div key={i}>
                 {i !== 0 && 
                     <div className='Seperator'></div>
                 }
-                <Card store={this.state.store} setSymbol={this.setSymbol} {...card}/>
+                <Card store={SymbolStore.storeWithPosition(this.state.store, card.storePosition)} setSymbol={this.setSymbol} {...card}/>
             </div>
         );
 
