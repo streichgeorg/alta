@@ -137,6 +137,10 @@ class FunctionPlot extends Component {
                 const x = xDomain[0] + segmentLength * i;
                 const y = this.props.func(x);
 
+                if (isNaN(y)) {
+                    return null;
+                }
+
                 return [x, y];
             } catch (e) {
                 return null;

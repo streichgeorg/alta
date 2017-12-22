@@ -219,7 +219,7 @@ class Parser {
     parseSum() {
         let expr = this.parseProduct();
 
-        while (this.testToken(TokenTypes.ADD_OPERATOR), this.testToken(TokenTypes.SUB_OPERATOR)) {
+        while (this.testToken(TokenTypes.ADD_OPERATOR) || this.testToken(TokenTypes.SUB_OPERATOR)) {
             let operator = this.currentToken.type;
             let nextProduct = this.parseProduct();
 

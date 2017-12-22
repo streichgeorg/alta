@@ -36,6 +36,10 @@ input[type=text]:focus {
   border-bottom-color: #17BEBB;
 }
 
+input[type=button]:active {
+  background-color: #17BEBB;
+}
+
 *:focus {
     outline: 0;
 }

@@ -479,6 +479,18 @@ function simplifyFraction(expr) {
     let numerator = simplify(expr.numerator);
     let denominator = simplify(expr.denominator);
 
+    if (identical(numerator, number(0))) {
+        return number(0);
+    }
+
+    if (identical(denominator, number(1))) {
+        return numerator;
+    }
+
+    if (identical(denominator, number(0))) {
+        throw new InvalidExpression('Division by 0 is undefined');
+    }
+
     let newNumerator = [];
     let newDenominator = [];
 

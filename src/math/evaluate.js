@@ -164,9 +164,9 @@ function hasSymbol(scopedStore, name) {
 }
 
 function getSymbol(scopedStore, name) {
-    const { scope } = findScopeWithSymbol(scopedStore, name);
+    const { scope, index } = findScopeWithSymbol(scopedStore, name);
 
-    return scope[name];
+    return {symbol: scope[name], scopeId: index};
 }
 
 const defaultSymbols = [
@@ -189,7 +189,7 @@ function evalIdentifier(expr, scopedStore) {
         throw new UndefinedSymbol('Variable \'' + expr.name + '\' is not defined');
     }
 
-    const variable = getSymbol(scopedStore, expr.name);
+    const { symbol: variable, scopeId } = getSymbol(scopedStore, expr.name);
     if (!isVariable(variable)) {
         throw new UndefinedSymbol('Variable \'' + expr.name + '\' is not defined');
     }
@@ -198,7 +198,7 @@ function evalIdentifier(expr, scopedStore) {
         case VariableTypes.CONSTANT:
             return variable.value;
         case VariableTypes.VARIABLE:
-            return evaluate(variable.value, scopedStore);
+            return evaluate(variable.value, storeWithScope(scopedStore.store, scopeId));
         default: 
             assert(false);
     }
@@ -209,7 +209,7 @@ function evalFunction(expr, scopedStore) {
         throw new UndefinedSymbol('Function \'' + expr.name + '\' is not defined');
     }
 
-    const func = getSymbol(scopedStore, expr.name);
+    const { symbol: func, scopeId } = getSymbol(scopedStore, expr.name);
     if (!isFunction(func)) {
         throw new UndefinedSymbol('Function \'' + expr.name + '\' is not defined');
     }
@@ -229,7 +229,7 @@ function evalFunction(expr, scopedStore) {
             }
 
             const symbols = zip(func.argNames, args).map(([ name, value ]) => constant(name, value));
-            const store  = addScope(scopedStore.store, symbols);
+            const store  = addScope(scopedStore.store.slice(0, scopeId), symbols);
 
             return evaluate(func.expr, store);
         default:
@@ -252,7 +252,7 @@ function evaluate(expr, scopedStore=storeWithScope(defaultStore, defaultScopeId)
             const denominator = evaluate(expr.denominator, scopedStore);
 
             if (denominator === 0) {
-                throw new EvalError('Division by 0');
+                throw new EvalError('Division by 0 is undefined');
             }
 
             return numerator / denominator;
@@ -272,7 +272,7 @@ function evaluate(expr, scopedStore=storeWithScope(defaultStore, defaultScopeId)
 
 function evaluateFunction(args, expr, scopedStore=storeWithScope(defaultStore, defaultScopeId)) {
     const symbols = args.map(arg => constant(...arg));
-    const funcStore = addScope(scopedStore.store, symbols);
+    const funcStore = addScope(scopedStore.store.slice(0, scopedStore.scopeId), symbols);
     return evaluate(expr.right, funcStore);
 }
 

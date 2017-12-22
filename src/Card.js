@@ -33,8 +33,10 @@ class VariableCard extends Component {
         let expr = null;
 
         try {
-            expr = simplify(parse(e.target.value));
-            evaluate(expr, storeWithScope(this.props.store, this.props.scopeId));
+            let parsed = parse(e.target.value);
+            evaluate(parsed, storeWithScope(this.props.store, this.props.scopeId));
+
+            expr = simplify(parsed);
 
             this.props.setSymbol(this.props.scopeId, this.props.name, expr);
         } catch (e) {

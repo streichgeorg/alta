@@ -28,7 +28,7 @@ class Console extends Component {
                 return {expr: parse(value)};
             } catch (e) {
                 if (e instanceof ParseError) {
-                    return {hasError: true, error: e};
+                    return {hasError: true, parseError: e};
                 } else {
                     throw e;
                 }
@@ -36,7 +36,6 @@ class Console extends Component {
         }
 
         const { expr, parseError, hasError = false } = parseInput(input);
-        console.log(expr);
 
         if (hasError) {
             const card = {error: parseError, cardType: CardTypes.ERROR};
@@ -165,7 +164,7 @@ class Console extends Component {
             <div className='Buffer'></div>
 
             <div className='Input'>
-                <input className='TextInput' type='text' spellcheck='false' value={this.state.inputValue} onChange={this.onInputChanged} />
+                <input className='TextInput' type='text' spellCheck='false' value={this.state.inputValue} onChange={this.onInputChanged} />
                 <input className='SubmitButton' type='button' value='Submit' onClick={this.onSubmit} />
             </div>
         </div>
