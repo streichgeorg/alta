@@ -2,7 +2,7 @@ import { createErrorType } from '../util';
 
 import { identifier, number, sum, subtraction, power,
          product, fraction, functionCall, assignment,
-         isIdentifier } from './expression';
+         summation, factorial, isIdentifier, isVariableDefinition } from './expression';
 
 const ParseError = createErrorType('ParseError');
 
@@ -162,6 +162,28 @@ class Parser {
         const atom = this.parseAtom();
 
         if (isIdentifier(atom) && this.testToken(TokenTypes.OPEN_PAREN)) {
+            if (atom.name === 'sum') {
+                const counter = this.parseAssignment();
+                if (!isIdentifier(counter)) {
+                    throw new ParseError('Expected counter variable');
+                }
+
+                this.expectToken(TokenTypes.COMMA, 'Expected \',\'');
+
+                const low = this.parseExpression();
+
+                this.expectToken(TokenTypes.COMMA, 'Expected \',\'');
+
+                const high = this.parseExpression();
+
+                this.expectToken(TokenTypes.COMMA, 'Expected \',\'');
+
+                const expr = this.parseExpression();
+
+                this.expectToken(TokenTypes.CLOSED_PAREN, 'Expected \')\'');
+
+                return summation(counter.name, low, high, expr);
+            }
 
             if (this.testToken(TokenTypes.CLOSED_PAREN)) {
                 return functionCall(atom.name, []);
@@ -176,6 +198,15 @@ class Parser {
 
                return functionCall(atom.name, args);
             }
+        }
+
+        return atom;
+    }
+
+    parseFactorial() {
+        const atom = this.parseAtom();
+        if (this.testToken(TokenTypes.EXCLAMATION)) {
+            return factorial(atom);
         }
 
         return atom;

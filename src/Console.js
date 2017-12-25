@@ -166,7 +166,14 @@ class Console extends Component {
 
             <div className='InputCard'>
                 <div className='Input'>
-                    <input className='TextInput' type='text' spellCheck='false' value={this.state.inputValue} onChange={this.onInputChanged} />
+                    <input className='TextInput' type='text' spellCheck='false'
+                        value={this.state.inputValue}
+                        onKeyPress={e => {
+                            if (e.key == 'Enter') {
+                                this.onSubmit();
+                            }
+                        }}
+                        onChange={this.onInputChanged} />
                     <input className='SubmitButton' type='button' value='Submit' onClick={this.onSubmit} />
                 </div>
             </div>

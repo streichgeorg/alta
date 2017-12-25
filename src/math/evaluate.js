@@ -83,6 +83,24 @@ function evalFunction(expr, store) {
     }
 }
 
+function evalSummation(expr, store) {
+    const low = evaluate(expr.low, store);
+    const high = evaluate(expr.high, store);
+
+    if (low > high) {
+        throw EvalError('Cannot sum in reverse order');
+    }
+
+    let sum = 0;
+    for (let i = low; i <= high; i++) {
+        let symbol = [expr.counter, constant(i)];
+        let counterStore = store.addScope([symbol]);
+        sum += evaluate(expr.expr, counterStore);
+    }
+
+    return sum;
+}
+
 function evaluate(expr, store = defaultStore) {
     switch (expr.type) {
         case ExpressionTypes.IDENTIFIER:
@@ -111,6 +129,8 @@ function evaluate(expr, store = defaultStore) {
             return Math.pow(evaluate(expr.base, store), evaluate(expr.exponent, store));
         case ExpressionTypes.FUNCTION:
             return evalFunction(expr, store);
+        case ExpressionTypes.SUMMATION:
+            return evalSummation(expr, store);
         default:
             throw new EvalError('Unsupported expression type');
     }

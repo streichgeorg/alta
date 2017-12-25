@@ -1,6 +1,6 @@
 import * as util from '../util';
 
-const ExpressionTypes = {
+export const ExpressionTypes = {
     IDENTIFIER: 0,
     NUMBER: 1,
     SUM: 2,
@@ -10,9 +10,11 @@ const ExpressionTypes = {
     POWER: 6,
     FUNCTION: 7,
     ASSIGNMENT: 8,
+    SUMMATION: 9,
+    FACTORIAL: 10,
 };
 
-function identifier(name) {
+export function identifier(name) {
     return {
         name,
 
@@ -20,7 +22,7 @@ function identifier(name) {
     };
 }
 
-function number(number) {
+export function number(number) {
     return {
         number,
 
@@ -28,7 +30,7 @@ function number(number) {
     };
 }
 
-function sum(summands) {
+export function sum(summands) {
     return {
         summands,
 
@@ -36,14 +38,14 @@ function sum(summands) {
     };
 }
 
-function subtraction(left, right) {
+export function subtraction(left, right) {
     return sum([
         left,
         product([number(-1), right])
     ]);
 }
 
-function product(factors) {
+export function product(factors) {
     return {
         factors,
 
@@ -51,7 +53,7 @@ function product(factors) {
     };
 }
 
-function fraction(numerator, denominator) {
+export function fraction(numerator, denominator) {
     return {
         numerator,
         denominator,
@@ -60,7 +62,7 @@ function fraction(numerator, denominator) {
     }
 }
 
-function power(base, exponent) {
+export function power(base, exponent) {
     return {
         base,
         exponent,
@@ -69,7 +71,7 @@ function power(base, exponent) {
     };
 }
 
-function functionCall(name, args) {
+export function functionCall(name, args) {
     return {
         name,
         args,
@@ -78,7 +80,7 @@ function functionCall(name, args) {
     };
 }
 
-function assignment(left, right) {
+export function assignment(left, right) {
     return {
         left,
         right,
@@ -87,51 +89,75 @@ function assignment(left, right) {
     };
 }
 
-export { ExpressionTypes, identifier, number, sum, subtraction,
-         product, fraction, power, functionCall, assignment };
+export function summation(counter, low, high, expr) {
+    return {
+        counter,
+        low,
+        high,
+        expr,
 
-function isIdentifier(expr) {
+        type: ExpressionTypes.SUMMATION
+    }
+}
+
+export function factorial(child) {
+    return {
+        child,
+
+        type: ExpressionTypes.FACTORIAL
+    }
+}
+
+export function isIdentifier(expr) {
     return expr.type === ExpressionTypes.IDENTIFIER;
 }
 
-function isNumber(expr) {
+export function isNumber(expr) {
     return expr.type === ExpressionTypes.NUMBER;
 }
 
-function isSum(expr) {
+export function isSum(expr) {
     return expr.type === ExpressionTypes.SUM;
 }
 
-function isProduct(expr) {
+export function isProduct(expr) {
     return expr.type === ExpressionTypes.PRODUCT;
 }
 
-function isFraction(expr) {
+export function isFraction(expr) {
     return expr.type === ExpressionTypes.FRACTION;
 }
 
-function isPower(expr) {
+export function isPower(expr) {
     return expr.type === ExpressionTypes.POWER;
 }
 
-function isFunction(expr) {
+export function isFunction(expr) {
     return expr.type === ExpressionTypes.FUNCTION;
 }
 
-function isAssignment(expr) {
+export function isAssignment(expr) {
     return expr.type === ExpressionTypes.ASSIGNMENT;
 }
 
-function isFunctionDefinition(expr) {
+export function isSummation(expr) {
+    return expr.type === ExpressionTypes.SUMMATION;
+}
+
+export function isFactorial(expr) {
+    return expr.type === ExpressionTypes.FACTORIAL;
+}
+
+export function isFunctionDefinition(expr) {
     return isAssignment(expr) && isFunction(expr.left) &&
            !expr.left.args.find(arg => !isIdentifier(arg));
 }
 
-function isVariableDefinition(expr) {
+export function isVariableDefinition(expr) {
     return isAssignment(expr) && isIdentifier(expr.left);
 }
 
-function getParameters(e) {
+export function getParameters(e) {
     const func = (expr) => {
 
         switch (expr.type) {
@@ -172,9 +198,7 @@ function getParameters(e) {
     return new Set(parameters);
 }
 
-export { isIdentifier, isNumber, isSum, isProduct, isFraction, isPower, isFunction, isAssignment, isFunctionDefinition, isVariableDefinition, getParameters };
-
-function compareExpressions(a, b) {
+export function compareExpressions(a, b) {
     if (a.type !== b.type) {
         return a.type < b.type;
     }
@@ -255,7 +279,7 @@ function sortedExpressionList(list) {
     return sorted;
 }
 
-function identical(a, b) {
+export function identical(a, b) {
     if (a.type !== b.type) {
         return false;
     }
@@ -295,9 +319,7 @@ function identical(a, b) {
     }
 }
 
-export { compareExpressions, identical };
-
-const InvalidExpression = util.createErrorType('ExpresssionError');
+export const InvalidExpression = util.createErrorType('ExpresssionError');
 
 function flattenTree(isParent, key, expr) {
     const func = (node) => {
@@ -598,7 +620,7 @@ function simplifyFunction(expr) {
     return expr;
 }
 
-function simplify(expr) {
+export function simplify(expr) {
     switch(expr.type) {
         case ExpressionTypes.SUM:
             return simplifySum(expr);
@@ -613,8 +635,6 @@ function simplify(expr) {
     }
 }
 
-export { simplify, InvalidExpression };
-
 const Predecence = {
     NONE: 0,
     SUM: 1,
@@ -622,7 +642,7 @@ const Predecence = {
     POWER: 3
 };
 
-function expressionToString(expr) {
+export function expressionToString(expr) {
     const inParens = (str) => {
         return '(' + str + ')';
     }
@@ -667,6 +687,12 @@ function expressionToString(expr) {
             case ExpressionTypes.ASSIGNMENT: {
                 return expressionToString(expr.left) + ' = ' + expressionToString(expr.right);
             }
+            case ExpressionTypes.SUMMATION: {
+                return `sum(${expr.counter}, ${expressionToString(expr.low)}, ${expressionToString(expr.high)}, ${expressionToString(expr.expr)})`;
+            }
+            case ExpressionTypes.FACTORIAL: {
+                return `${expressionToString(expr.child)}!`;
+            }
             default:
                 util.assert(false);
         }
@@ -674,5 +700,3 @@ function expressionToString(expr) {
 
     return func(expr, Predecence.NONE);
 }
-
-export { expressionToString };
