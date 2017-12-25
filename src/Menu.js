@@ -9,13 +9,13 @@ class Menu extends Component {
             helpExpanded: false
         }
 
-        this.expandHelp = this.expandHelp.bind(this);
+        this.expandAbout = this.expandAbout.bind(this);
     }
 
-    expandHelp() {
+    expandAbout() {
         this.setState({
             ...this.state,
-            helpExpanded: !this.state.helpExpanded 
+            aboutExpanded: !this.state.aboutExpanded 
         });
     }
 
@@ -23,9 +23,9 @@ class Menu extends Component {
         return <div className='Menu'>
             <div className='MenuTitle'>ALTA</div>
             <div className='MenuItem' >
-                <p className='MenuText' onClick={this.expandHelp}>Help</p>
-                { this.state.helpExpanded &&
-                    <div className='HelpText'>
+                <p className='MenuText' onClick={this.expandAbout}>About</p>
+                { this.state.aboutExpanded &&
+                    <div className='AboutText'>
                         You can evaluate mathematical expressions and plot functions with alta.
                         The following builtin functions are available: 'sin', 'asin', 'cos', 'acos', 'tan',
                         atan, sqrt as well as the mathematical constants 'pi' and 'e'. You can define 

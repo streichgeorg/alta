@@ -116,7 +116,7 @@ export class SymbolStore {
             newScope[symbol[0]] = symbol[1];
         }
 
-        const scopes = [...this.scopes, newScope];
+        const scopes = [...this.scopes.slice(0, this.position), newScope];
 
         return new SymbolStore(scopes);
     }

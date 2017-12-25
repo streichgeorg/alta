@@ -2,6 +2,9 @@ import { zip, reversed, assert, createErrorType } from '../util';
 import { ExpressionTypes, InvalidExpression } from './expression';
 import { constant, isValue, isFunction, builtinFunc, FunctionTypes, ValueTypes, SymbolTypes, SymbolStore } from './symbolStore';
 
+const EPSILON = 0.00001;
+const apprxEqu = (a, b) => Math.abs(a - b) < EPSILON;
+
 const EvalError = createErrorType('EvalError');
 const UndefinedSymbol = createErrorType('UndefinedSymbol');
 
@@ -13,6 +16,8 @@ const defaultSymbols = [
     ['acos', builtinFunc(Math.acos)],
     ['atan', builtinFunc(Math.atan)],
     ['sqrt', builtinFunc(Math.sqrt)],
+    ['ln', builtinFunc(Math.log)],
+    ['log', builtinFunc(Math.log10)],
 
     ['pi', constant(Math.PI)],
     ['e', constant(Math.E)],
@@ -57,6 +62,10 @@ function evalFunction(expr, store) {
         case FunctionTypes.BUILTIN:
             if (func.argCount !== args.length) {
                 throw new InvalidExpression('Wrong number of arguments');
+            }
+
+            if ((expr.name === 'ln' || expr.name === 'log') && apprxEqu(args[0], 0)) {
+                throw new EvalError('log(0) is undefined');
             }
 
             return func.func(...args);

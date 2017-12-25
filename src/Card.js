@@ -8,7 +8,7 @@ import { assert } from './util';
 import { parse, ParseError } from './math/parser';
 import { evaluate, evaluateFunction, EvalError, UndefinedSymbol } from './math/evaluate';
 import { variable } from './math/symbolStore';
-import { expressionToString, simplify } from './math/expression';
+import { identifier, expressionToString, simplify, getParameters } from './math/expression';
 
 const CardTypes = {
     EXPRESSION: 0,
@@ -75,6 +75,51 @@ class VariableCard extends Component {
 }
 
 class Card extends Component {
+
+    constructor(props) {
+        super(props);
+
+        if (props.cardType !== CardTypes.ERROR) {
+            const params = getParameters(props.expr);
+            let dependent = {};
+            for (const param of params) {
+                dependent[param] = evaluate(identifier(param), props.store);
+            }
+
+            this.state = {dependent};
+        }
+    }
+
+    componentWillReceiveProps(nextProps) {
+        let changedValues = {};
+
+        for (const param in this.state.dependent) {
+            const newValue = evaluate(identifier(param), nextProps.store);
+
+            if (newValue !== this.state.dependent[param]) {
+                changedValues[param] = newValue;
+            }
+        }
+
+        this.setState({
+            ...this.state,
+            dependent: {
+                ...this.state.dependent,
+                ...changedValues
+            }
+        });
+    }
+
+    shouldComponentUpdate(nextProps, nextState) {
+        for (let param in this.state.dependent) {
+            if (nextState.dependent[param] !== this.state.dependent[param]) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     renderError(e) {
         return <div className='Card' >{e.message}</div>
     }

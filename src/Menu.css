@@ -1,8 +1,9 @@
 .Menu {
     background-color: #0D1B2A;
     user-select: none;
-    height: 100%;
+    height: 100vh;
     color:#FFFAFF;
+    overflow-y: auto;
 }
 
 .MenuTitle {
@@ -23,7 +24,7 @@
     padding-left: 50px;
 }
 
-.HelpText {
+.AboutText {
     padding: 10px;
     padding-left: 30px;
     font-size: 0.8em;

@@ -133,6 +133,7 @@ function isVariableDefinition(expr) {
 
 function getParameters(e) {
     const func = (expr) => {
+
         switch (expr.type) {
             case ExpressionTypes.IDENTIFIER:
                 return [expr.name];
@@ -147,11 +148,23 @@ function getParameters(e) {
             case ExpressionTypes.POWER:
                 return [...func(expr.base), ...func(expr.exponent)];
             case ExpressionTypes.FUNCTION:
-                return expr.args.map(func)
-                                    .reduce((acc, value) => acc.concat(value));
+                return expr.args.map(func).reduce((acc, value) => [...acc, value]);
             default:
                 return [];
         }
+    }
+
+    if (isVariableDefinition(e)) {
+        return getParameters(e.right);
+    }
+
+    if (isFunctionDefinition(e)) {
+        let params = getParameters(e.right);
+        for (let arg of e.left.args) {
+            params.delete(arg.name);
+        }
+
+        return params;
     }
 
     const parameters = func(e);
