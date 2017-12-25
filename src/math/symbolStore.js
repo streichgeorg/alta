@@ -99,10 +99,6 @@ export class SymbolStore {
         return new SymbolStore([scope]);
     }
 
-    static storeWithPosition(store, position) {
-        return new SymbolStore(store.scopes, position);
-    }
-
     constructor(scopes, position = null) {
         this.scopes = scopes;
 
@@ -163,5 +159,9 @@ export class SymbolStore {
         ];
 
         return new SymbolStore(newStore);
+    }
+
+    setPosition(position) {
+        return new SymbolStore(this.scopes, position);
     }
 }

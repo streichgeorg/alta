@@ -3,8 +3,8 @@
     display: flex;
 }
 
-.Menu {
-    flex-grow: 1;
+.MenuContainer {
+    width: 20%;
 }
 
 .Buffer {

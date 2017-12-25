@@ -150,13 +150,12 @@ class Console extends Component {
     }
 
     render() {
-        console.log(this.state);
         const cards = this.state.cards.map((card, i) =>
             <div key={i}>
                 {i !== 0 && 
                     <div className='Seperator'></div>
                 }
-                <Card store={SymbolStore.storeWithPosition(this.state.store, card.storePosition)} setSymbol={this.setSymbol} {...card}/>
+                <Card store={this.state.store.setPosition(card.storePosition)} setSymbol={this.setSymbol} {...card}/>
             </div>
         );
 
@@ -165,9 +164,11 @@ class Console extends Component {
 
             <div className='Buffer'></div>
 
-            <div className='Input'>
-                <input className='TextInput' type='text' spellCheck='false' value={this.state.inputValue} onChange={this.onInputChanged} />
-                <input className='SubmitButton' type='button' value='Submit' onClick={this.onSubmit} />
+            <div className='InputCard'>
+                <div className='Input'>
+                    <input className='TextInput' type='text' spellCheck='false' value={this.state.inputValue} onChange={this.onInputChanged} />
+                    <input className='SubmitButton' type='button' value='Submit' onClick={this.onSubmit} />
+                </div>
             </div>
         </div>
     }

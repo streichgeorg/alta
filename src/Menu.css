@@ -1,0 +1,36 @@
+.Menu {
+    background-color: #0D1B2A;
+    user-select: none;
+    height: 100%;
+    color:#FFFAFF;
+}
+
+.MenuTitle {
+    padding: 30px;
+    font-size: 2em;
+}
+
+.MenuItem {
+
+}
+
+.MenuText {
+    padding: 10px;
+    padding-left: 30px;
+}
+
+.MenuText:hover {
+    padding-left: 50px;
+}
+
+.HelpText {
+    padding: 10px;
+    padding-left: 30px;
+    font-size: 0.8em;
+}
+
+.Seperator {
+    width: 100%;
+    height: 5px;
+    background-color: #0D1B2A;
+}

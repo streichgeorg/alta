@@ -1,7 +1,7 @@
 import React, { Component } from 'react';
 import Dimensions from 'react-dimensions';
 
-import { range } from './util';
+import { assert, range } from './util';
 
 // TODO: Better pass a standalone js function, that would be much more efficient
 const Orientation = {
@@ -137,28 +137,74 @@ class FunctionPlot extends Component {
                 const x = xDomain[0] + segmentLength * i;
                 const y = this.props.func(x);
 
-                if (isNaN(y)) {
-                    return null;
-                }
+                // Evaluate should not return Nan
+                assert(!isNaN(y));
 
                 return [x, y];
             } catch (e) {
                 return null;
             }
-        }).filter(el => el != null);
+        }).filter(p => p);
 
-        const [ min, max ] = dataPoints.reduce(([ min, max ], [ _, y ]) => {
-            return [Math.min(min, y), Math.max(max, y)];
-        }, [Number.MAX_VALUE, Number.MIN_VALUE]);
+        const [ min, max ] = dataPoints.reduce(([ min, max ], point) => [Math.min(min, point[1]), Math.max(max, point[1])]
+        , [Number.MAX_VALUE, Number.MIN_VALUE]);
 
-
-        const yDomain = [Math.max(xDomain[0], Math.min(0, min)), Math.min(xDomain[1], Math.max(0, max))];
-        if (Math.abs(min - max)) {
+        let yDomain = [Math.max(xDomain[0], Math.min(0, min)), Math.min(xDomain[1], Math.max(0, max))];
+        if (Math.abs(min - max) < 2) {
             yDomain[0] -= 1;
             yDomain[1] += 1;
         }
 
         const domain = {x: xDomain, y: yDomain};
+
+        const split = (points) => {
+            return points.reduce(([ paths, path ], point, i, arr) => {
+                if (point === null || i === arr.length - 1) {
+                    if (path.length > 0) {
+                        paths.push(path);
+                        path = [];
+                    }
+                } else {
+                    path.push(point);
+                }
+
+                return [paths, path];    
+            }, [[], []])[0];
+        };
+
+        const splitAtAsympote = (path) => {
+            const sign = (num) => {
+                if (num < 0) {
+                    return -1
+                } else if (num > 0) {
+                    return 1;
+                } else {
+                    return 0;
+                }
+            }
+
+            return split(path.reduce(([path, oldPoint, oldSign], point) => {
+                if (oldPoint === null) {
+                    return [[...path, point], point, null];
+                } else if (oldSign === null) {
+                    const deltaY = point[1] - oldPoint[1];
+                    return [[...path, point], point, sign(deltaY)];
+                }
+
+                const deltaY = point[1] - oldPoint[1];
+                const deltaX = point[0] - oldPoint[0];
+
+                const newSign = sign(deltaY);
+
+                if (oldSign !== newSign && Math.abs(deltaY / deltaX) > 500) {
+                    return [[...path, null, point], point, newSign]
+                }
+
+                return [[...path, point], point, newSign]
+            }, [[], null, null])[0]);
+        };
+
+        const paths = split(dataPoints).reduce((acc, path) => [...acc, ...splitAtAsympote(path)], []);
 
         const plotWidth = containerWidth - 200;
 
@@ -206,12 +252,14 @@ class FunctionPlot extends Component {
                         domain={domain}
                         distance={1}/>
 
-                    <Path transform={transform}
-                        domain={domain}
-                        points={dataPoints}
-                        width={2.5}
-                        color={'#CC2936'}
-                        />
+                    {paths.map((path, i) => 
+                        <Path key={i}
+                            transform={transform}
+                            domain={domain}
+                            points={path}
+                            width={2.5}
+                            color={'#CC2936'}/>
+                    )}
                 </g>
             </svg>
         </div>

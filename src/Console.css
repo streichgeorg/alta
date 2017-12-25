@@ -1,20 +1,31 @@
 .Console {
     min-height: 100vh;
+    max-height: 100vh;
     width: 700px;
     min-width: 500px;
 
     display: flex;
     flex-direction: column;
 
-    background-color: #FFFAFF;    
+    background-color: #FFFAFF;
+
+    overflow-y: scroll;
 }
 
 .Buffer {
     flex-grow: 1;
 }
 
+.InputCard {
+    min-height: 40px;
+    padding-top: 60px;
+    padding-bottom: 60px;
+}
+
 .Input {
-    padding: 100px;
+    height: 40px;
+    width: 70%;
+    margin: 0 auto;
     display: flex;
 }
 

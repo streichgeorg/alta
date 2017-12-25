@@ -34,7 +34,7 @@ function evalIdentifier(expr, store) {
         case ValueTypes.CONSTANT:
             return value.value;
         case ValueTypes.VARIABLE:
-            return evaluate(value.expr, store);
+            return evaluate(value.expr, store.setPosition(position));
         default: 
             assert(false);
     }

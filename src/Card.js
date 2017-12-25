@@ -33,8 +33,6 @@ class VariableCard extends Component {
         const inputValue = e.target.value;
         let expr = null;
 
-        console.log(this.props.storePosition);
-
         try {
             let parsed = parse(e.target.value);
             evaluate(parsed, this.props.store);
