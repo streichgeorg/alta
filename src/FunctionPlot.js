@@ -3,7 +3,10 @@ import Dimensions from 'react-dimensions';
 
 import { assert, range } from './util';
 
+//
 // TODO: Better pass a standalone js function, that would be much more efficient
+//
+
 const Orientation = {
     HORIZONTAL: true,
     VERTICAL: false,
@@ -17,12 +20,29 @@ const mapToDomain = (from, to, value) => {
     return to[0] + normalized * (to[1] - to[0]);
 }
 
-const Text = ({transform = p => p, position, text, anchor='middle', centerVertical=true, size=20, color='black'}) => {
+const Rect = ({transform, a, b, stroke='black'}) => {
+    const c = transform(a);
+    const d = transform(b);
+
+    const style = {
+        stroke,
+        fill: 'none',
+        strokeWidth: 1
+    };
+
+    return <rect x={c[0]} y={c[1]} width={d[0] - c[0]} height={d[1] - c[1]} style={style}/>
+}
+
+const Text = ({transform = p => p, position, text, anchor='middle', centerVertical=true, size=15, color='black'}) => {
     const screenPosition = transform(position);
 
-    const y = centerVertical ? screenPosition[1] + size / 2 : screenPosition[1];
+    const y = centerVertical ? screenPosition[1] + size / 4 : screenPosition[1] + size / 2;
 
-    return <text x={screenPosition[0]} y={y} textAnchor={anchor} fill={color} fontSize={size}>{text}</text>
+    const style = {
+        fontSize: size
+    };
+
+    return <text x={screenPosition[0]} y={y} textAnchor={anchor} style={style} fontSize={size}>{text}</text>
 }
 
 const Line = ({transform = p => p, start, end, width, color='black'}) => {
@@ -52,7 +72,7 @@ const Axis = ({transform, originPos, orientation, size, origin, domain, labelDis
     const end = addVec(start, fromOrientation(orientation));
 
     const getTextPosition = (p) => {
-        const q = mulVec(fromOrientation(!orientation), 20);
+        const q = mulVec(fromOrientation(!orientation), 8);
         const r = transform(addVec(start, mulVec(fromOrientation(orientation), p)));
         return addVec(q, r);
     }
@@ -70,17 +90,22 @@ const Axis = ({transform, originPos, orientation, size, origin, domain, labelDis
     </g>
 }
 
-const Grid = ({ transform, domain, distance }) => {
+const Grid = ({ transform, domain, distance, width }) => {
     const DirectionalGrid = ({ transform, orientation, domain, distance }) => {
+        const domainSize = domain[1] - domain[0];
+
+        const firstLine = distance - ((domain[0] % distance) + distance) % distance + domain[0];
+        const screenFirstLine = (firstLine - domain[0]) / domainSize;
+
         const numLines = Math.ceil((domain[1] - domain[0]) / distance) + 1;
-        const screenDistance = distance / (domain[1] - domain[0]);
+        const screenDistance = distance / domainSize;
 
         return <g>
-            {range(0, numLines).map(i => {
-                const start = mulVec(fromOrientation(!orientation), i * screenDistance);
+            {range(0, numLines).map(i => screenFirstLine + i * screenDistance).filter(p => p <= 1).map((p, i) => {
+                const start = mulVec(fromOrientation(!orientation), p);
                 const end = addVec(start, fromOrientation(orientation));
 
-                return <Line key={i} transform={transform} start={start} end={end} width={0.5}/>
+                return <Line key={i} transform={transform} start={start} end={end} width={width}/>
             })}
         </g>
 
@@ -206,7 +231,7 @@ class FunctionPlot extends Component {
 
         const paths = split(dataPoints).reduce((acc, path) => [...acc, ...splitAtAsympote(path)], []);
 
-        const plotWidth = containerWidth - 200;
+        const plotWidth = containerWidth * 0.8;
 
         const aspectRatio = (xDomain[1] - xDomain[0]) / (yDomain[1] - yDomain[0]);
         const containerHeight = containerWidth / aspectRatio;
@@ -250,7 +275,17 @@ class FunctionPlot extends Component {
 
                     <Grid transform={transform}
                         domain={domain}
-                        distance={1}/>
+                        distance={0.5}
+                        width={0.3}/>
+
+                    <Grid transform={transform}
+                        domain={domain}
+                        distance={4}
+                        width={1}/>
+
+                    <Rect transform={transform}
+                        a={[0, 1]}
+                        b={[1, 0]}/>
 
                     {paths.map((path, i) => 
                         <Path key={i}

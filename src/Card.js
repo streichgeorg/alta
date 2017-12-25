@@ -91,6 +91,10 @@ class Card extends Component {
     }
 
     componentWillReceiveProps(nextProps) {
+        if (this.props.cardType === CardTypes.ERROR) {
+            return;
+        }
+
         let changedValues = {};
 
         for (const param in this.state.dependent) {
@@ -111,6 +115,10 @@ class Card extends Component {
     }
 
     shouldComponentUpdate(nextProps, nextState) {
+        if (this.props.cardType === CardTypes.ERROR) {
+            return false;
+        }
+
         for (let param in this.state.dependent) {
             if (nextState.dependent[param] !== this.state.dependent[param]) {
                 return true;
