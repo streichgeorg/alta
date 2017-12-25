@@ -26,11 +26,11 @@ class Menu extends Component {
                 <p className='MenuText' onClick={this.expandAbout}>About</p>
                 { this.state.aboutExpanded &&
                     <div className='AboutText'>
-                        You can evaluate mathematical expressions and plot functions with alta.
-                        The following builtin functions are available: 'sin', 'asin', 'cos', 'acos', 'tan',
-                        atan, sqrt as well as the mathematical constants 'pi' and 'e'. You can define 
-                        and plot your own functions with '&lt;name&gt;(&lt;args&gt;) = &lt;expr&gt;' and your 
-                        own variables with '&lt;name&gt; = &lt;expr&gt;' 
+                        With alta you can evaluate mathematical expressions and plot funtions. 
+                        There are some pre defined funtions and constants but you can also 
+                        define your own symbols. You can define and plot your own functions 
+                        with &lt;name&gt;(&lt;args&gt;) = &lt;expr&gt; and your own variables 
+                        with &lt;name&gt; = &lt;expr&gt;.
                     </div>
                 } 
             </div>
