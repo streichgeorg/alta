@@ -19,6 +19,7 @@ const mapToDomain = (from, to, value) => {
     const normalized = (value - from[0]) / (from[1] - from[0]);
     return to[0] + normalized * (to[1] - to[0]);
 }
+const inDomain = (domain, value) => value >= domain[0] && value <= domain[1];
 
 const Rect = ({transform, a, b, stroke='black'}) => {
     const c = transform(a);
@@ -59,14 +60,17 @@ const Line = ({transform = p => p, start, end, width, color='black'}) => {
 
 const Axis = ({transform, originPos, orientation, size, origin, domain, labelDistance }) => {
     const offset = orientation ? originPos[1] : originPos[0];
+    const domainSize = domain[1] - domain[0];
 
-    const firstLabel = mapToDomain(domain, [0, 1], domain[0] - domain[0] % labelDistance);
-    const numLabels = Math.ceil((domain[1] - domain[0]) / labelDistance) + 1;
-    const screenLabelDistance = labelDistance / (domain[1] - domain[0]);
+    const firstLabel = labelDistance - ((domain[0] % labelDistance) + labelDistance) % labelDistance + domain[0];
+    const screenFirstLabel = (firstLabel - domain[0]) / domainSize;
+
+    const numLabels = Math.ceil((domain[1] - domain[0]) / labelDistance);
+    const screenLabelDistance = labelDistance / domainSize;
 
     const labelSpots = range(0, numLabels).map(i => {
-        return firstLabel + screenLabelDistance * i;
-    });
+        return screenFirstLabel + screenLabelDistance * i;
+    }).filter(spot => inDomain([0, 1], spot));
 
     const start = mulVec(fromOrientation(!orientation), offset);
     const end = addVec(start, fromOrientation(orientation));
@@ -86,7 +90,7 @@ const Axis = ({transform, originPos, orientation, size, origin, domain, labelDis
                 centerVertical={!orientation}/>
             )}
 
-        <Line transform={transform} start={start} end={end} width={1.5}/>
+        <Line transform={transform} start={start} end={end} width={2}/>
     </g>
 }
 
@@ -144,8 +148,52 @@ class FunctionPlot extends Component {
         super(props);
 
         this.state = {
-            delta: [0, 0]
+            dragging: false,
+            delta: [0, 0],
+            lastMousePos: null
         };
+
+        this.onMouseDown = this.onMouseDown.bind(this);
+        this.onMouseUp = this.onMouseUp.bind(this);
+        this.onMouseLeave = this.onMouseLeave.bind(this);
+        this.onMouseMove = this.onMouseMove.bind(this);
+    }
+
+    onMouseDown(e) {
+        this.setState({
+            ...this.state,
+            dragging: true,
+            lastMousePos: [e.pageX, e.pageY]
+        });
+    }
+
+    onMouseUp(e) {
+        this.setState({
+            ...this.state,
+            dragging: false,
+            lastMousePos: null
+        });
+    }
+
+    onMouseLeave(e) {
+        this.setState({
+            ...this.state,
+            dragging: false,
+            lastMousePos: null
+        });
+    }
+
+    onMouseMove(e) {
+        const DRAG_SPEED = 0.05;
+        if (this.state.dragging) {
+            let mousePos = [e.pageX, e.pageY];
+            let delta = mulVec(addVec(this.state.lastMousePos, mulVec(mousePos, -1)), DRAG_SPEED);
+            this.setState({
+                ...this.state,
+                lastMousePos: mousePos,
+                delta: addVec(this.state.delta, delta)
+            });
+        }
     }
 
     render() {
@@ -153,7 +201,11 @@ class FunctionPlot extends Component {
 
         const { numSamples = 500, propsDomain = [-10, 10] } = this.props;
 
-        const xDomain = propsDomain;
+        const xDomain = [propsDomain[0] + this.state.delta[0], propsDomain[1] + this.state.delta[0]];
+        // TODO: Find a good starting offset in the constructor
+        const yDomain = [propsDomain[0] - this.state.delta[1], propsDomain[1] - this.state.delta[1]];
+
+        const domain = {x: xDomain, y: yDomain};
 
         const segmentLength = (xDomain[1] - xDomain[0]) / numSamples;
 
@@ -182,18 +234,8 @@ class FunctionPlot extends Component {
 
         const flatten = arrays => arrays.reduce((acc, arr) => [...acc, ...arr], []);
 
-        const [ min, max ] = flatten(paths).reduce(([ min, max ], point) => [Math.min(min, point[1]), Math.max(max, point[1])]
-        , [Number.MAX_VALUE, Number.MIN_VALUE]);
 
-        let yDomain = [Math.max(xDomain[0], Math.min(0, min)), Math.min(xDomain[1], Math.max(0, max))];
-        if (Math.abs(min - max) < 2) {
-            yDomain[0] -= 1;
-            yDomain[1] += 1;
-        }
-
-        const domain = {x: xDomain, y: yDomain};
-
-        const splitAtAsympote = (path) => {
+        const splitAtAsymptote = (path) => {
             const sign = (num) => {
                 if (num < 0) {
                     return -1
@@ -204,6 +246,7 @@ class FunctionPlot extends Component {
                 }
             }
 
+            // TODO: Find almost exact position of asymptote
             return path.reduce(([paths, path, oldPoint, oldSign], point, i, arr) => {
                 if (oldPoint === null) {
                     return [paths, [...path, point], point, null];
@@ -230,12 +273,6 @@ class FunctionPlot extends Component {
         };
 
         const removeOutOfDomain = (path) => {
-            // Check of point is inside y-domain
-            const contained = (point) => 
-                point[1] >= domain.y[0] &&
-                point[1] <= domain.y[1];
-
-            
             // Assuming b is outside the y-domain
             const intersect = (domain, a, b) => {
                 let delta;
@@ -253,7 +290,7 @@ class FunctionPlot extends Component {
             };
 
             return path.reduce(([paths, path, prevPoint, prevContained], point, i, arr) => {
-                const contains = contained(point);
+                const contains = inDomain(domain.y, point[1]);
 
                 if (prevPoint === null) {
                     if (contains) {
@@ -284,10 +321,8 @@ class FunctionPlot extends Component {
             }, [[], [], null, null])[0];
         }
 
-        console.log(removeOutOfDomain(paths[0]));
-
         paths = paths.reduce((acc, path) => [...acc, ...removeOutOfDomain(path)], [])
-                     .reduce((acc, path) => [...acc, ...splitAtAsympote(path)], []);
+                     .reduce((acc, path) => [...acc, ...splitAtAsymptote(path)], []);
 
         const plotWidth = containerWidth * 0.8;
 
@@ -303,26 +338,38 @@ class FunctionPlot extends Component {
         }
 
         const originFromDomain = (domain) => -domain[0] / (domain[1] - domain[0]);
-        const originPos = [originFromDomain(xDomain), originFromDomain(yDomain)];
+        const originPos = [
+            Math.min(Math.max(0, originFromDomain(xDomain)), 1),
+            Math.min(Math.max(0, originFromDomain(yDomain)), 1)
+        ];
 
-        return <div>
+        const style = {
+            userSelect: 'none'
+        };
+
+        return <div style={style}
+                    onMouseDown={this.onMouseDown}
+                    onMouseUp={this.onMouseUp}
+                    onMouseLeave={this.onMouseLeave}
+                    onMouseMove={this.onMouseMove}>
+
             <svg width={containerWidth} height={containerHeight}>
                 <g>
-                    <Axis domain={xDomain} 
+                    <Axis domain={xDomain}
                         transform={transform}
                         originPos={originPos}
                         orientation={Orientation.HORIZONTAL}
-                        labelDistance={2}/>
+                        labelDistance={4}/>
 
                     <Axis domain={yDomain}
                         transform={transform}
                         originPos={originPos}
                         orientation={Orientation.VERTICAL}
-                        labelDistance={2}/>
+                        labelDistance={4}/>
 
                     <Grid transform={transform}
                         domain={domain}
-                        distance={0.5}
+                        distance={1}
                         width={0.3}/>
 
                     <Grid transform={transform}
@@ -339,7 +386,7 @@ class FunctionPlot extends Component {
                             transform={transform}
                             domain={domain}
                             points={path}
-                            width={2.5}
+                            width={2}
                             color={'#CC2936'}/>
                     )}
                 </g>
