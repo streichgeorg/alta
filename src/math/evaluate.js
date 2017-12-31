@@ -1,6 +1,7 @@
 import { zip, reversed, assert, createErrorType } from '../util';
 import { ExpressionTypes, InvalidExpression } from './expression';
 import { constant, isValue, isFunction, builtinFunc, FunctionTypes, ValueTypes, SymbolTypes, SymbolStore, funcFromAssignment } from './symbolStore';
+import { factorial } from './factorial'
 
 const EPSILON = 0.00001;
 const apprxEqu = (a, b) => Math.abs(a - b) < EPSILON;
@@ -131,6 +132,18 @@ function evaluate(expr, store = defaultStore) {
             return evalFunction(expr, store);
         case ExpressionTypes.SUMMATION:
             return evalSummation(expr, store);
+        case ExpressionTypes.FACTORIAL:
+            const child = evaluate(expr.child, store);
+
+            if (child % 1 !== 0) {
+                throw new EvalError('Factorial is only defined for integers');
+            }
+
+            if (child > 171) {
+                throw new EvalError('Factorial is only defined for integers smaller than 171');
+            }
+
+            return factorial(child);
         default:
             throw new EvalError('Unsupported expression type');
     }

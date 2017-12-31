@@ -277,6 +277,16 @@ export function compareExpressions(a, b) {
             }
 
             return true;
+        case ExpressionTypes.SUMMATION:
+            if (a.counter !== b.counter) {
+                return a.counter < b.counter;
+            }
+
+            const summationToExprList = s => [s.low, s.high, s.expr];
+
+            return compareExpressionList(summationToExprList(a),summationToExprList(b));
+        case ExpressionTypes.FACTORIAL:
+            return compareExpressions(a.child, b.child);
         default:
             util.assert(false);
     }
@@ -322,6 +332,13 @@ export function identical(a, b) {
         case ExpressionTypes.ASSIGNMENT:
             return identical(a.left, b.left) && 
                    identical(a.right, b.right);
+        case ExpressionTypes.SUMMATION:
+            return a.counter === b.counter &&
+                   identical(a.low, a.low) &&
+                   identical(a.high, a.high) &&
+                   identical(a.expr, a.expr);
+        case ExpressionTypes.FACTORIAL:
+            return identical(a.child, b.child);
         default:
             util.assert(false);
     }

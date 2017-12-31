@@ -20,7 +20,8 @@ const TokenTypes = {
     OPEN_PAREN: 7,
     CLOSED_PAREN: 8,
     EQUAL: 9,
-    EOF: 10,
+    EXCLAMATION: 10,
+    EOF: 11,
 };
 
 class Parser {
@@ -110,6 +111,7 @@ class Parser {
             '/': TokenTypes.DIV_OPERATOR,
             '^': TokenTypes.POWER_OPERATOR,
             '=': TokenTypes.EQUAL,
+            '!': TokenTypes.EXCLAMATION,
         };
 
         if (this.currentChar() in oneCharacterTokens) {
@@ -121,7 +123,6 @@ class Parser {
             };
         }
 
-        // TODO: Implement ParserException
         throw new ParseError('Unexpected char \'' + this.currentChar() + '\'');
     }
 
@@ -202,8 +203,9 @@ class Parser {
     }
 
     parseFactorial() {
-        const atom = this.parseAtom();
+        const atom = this.parseFunction();
         if (this.testToken(TokenTypes.EXCLAMATION)) {
+            console.log('test');
             return factorial(atom);
         }
 
@@ -215,7 +217,7 @@ class Parser {
             return product([number(-1), this.parseUnaryOperator()]);
         }
 
-        return this.parseFunction();
+        return this.parseFactorial();
     }
 
     parsePower() {
