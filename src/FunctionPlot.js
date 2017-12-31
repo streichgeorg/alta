@@ -157,7 +157,7 @@ class FunctionPlot extends Component {
 
         const segmentLength = (xDomain[1] - xDomain[0]) / numSamples;
 
-        const dataPoints = range(0, numSamples + 1).map(i => {
+        let paths = range(0, numSamples + 1).reduce(([paths, path], i) => {
             try {
                 const x = xDomain[0] + segmentLength * i;
                 const y = this.props.func(x);
@@ -165,13 +165,24 @@ class FunctionPlot extends Component {
                 // Evaluate should not return Nan
                 assert(!isNaN(y));
 
-                return [x, y];
-            } catch (e) {
-                return null;
-            }
-        }).filter(p => p);
+                if (i === numSamples) {
+                    return [[...paths, [...path, [x, y]]], []];
+                }
 
-        const [ min, max ] = dataPoints.reduce(([ min, max ], point) => [Math.min(min, point[1]), Math.max(max, point[1])]
+                return [paths, [...path, [x, y]]]
+            } catch (e) {
+                // TODO: Only do this with EvalErrors
+                if (path.length > 0) {
+                    return [[...paths, path], []];
+                } else {
+                    return [paths, []];
+                }
+            }
+        }, [[], []])[0];
+
+        const flatten = arrays => arrays.reduce((acc, arr) => [...acc, ...arr], []);
+
+        const [ min, max ] = flatten(paths).reduce(([ min, max ], point) => [Math.min(min, point[1]), Math.max(max, point[1])]
         , [Number.MAX_VALUE, Number.MIN_VALUE]);
 
         let yDomain = [Math.max(xDomain[0], Math.min(0, min)), Math.min(xDomain[1], Math.max(0, max))];
@@ -181,21 +192,6 @@ class FunctionPlot extends Component {
         }
 
         const domain = {x: xDomain, y: yDomain};
-
-        const split = (points) => {
-            return points.reduce(([ paths, path ], point, i, arr) => {
-                if (point === null || i === arr.length - 1) {
-                    if (path.length > 0) {
-                        paths.push(path);
-                        path = [];
-                    }
-                } else {
-                    path.push(point);
-                }
-
-                return [paths, path];    
-            }, [[], []])[0];
-        };
 
         const splitAtAsympote = (path) => {
             const sign = (num) => {
@@ -208,12 +204,12 @@ class FunctionPlot extends Component {
                 }
             }
 
-            return split(path.reduce(([path, oldPoint, oldSign], point) => {
+            return path.reduce(([paths, path, oldPoint, oldSign], point, i, arr) => {
                 if (oldPoint === null) {
-                    return [[...path, point], point, null];
+                    return [paths, [...path, point], point, null];
                 } else if (oldSign === null) {
                     const deltaY = point[1] - oldPoint[1];
-                    return [[...path, point], point, sign(deltaY)];
+                    return [paths, [...path, point], point, sign(deltaY)];
                 }
 
                 const deltaY = point[1] - oldPoint[1];
@@ -222,14 +218,76 @@ class FunctionPlot extends Component {
                 const newSign = sign(deltaY);
 
                 if (oldSign !== newSign && Math.abs(deltaY / deltaX) > 500) {
-                    return [[...path, null, point], point, newSign]
+                    return [[...paths, [...path, oldPoint]], [point], point, newSign]
                 }
 
-                return [[...path, point], point, newSign]
-            }, [[], null, null])[0]);
+                if (i === arr.length - 1) {
+                    return [[...paths, [...path, point]]];
+                }
+
+                return [paths, [...path, point], point, newSign]
+            }, [[], [], null, null])[0];
         };
 
-        const paths = split(dataPoints).reduce((acc, path) => [...acc, ...splitAtAsympote(path)], []);
+        const removeOutOfDomain = (path) => {
+            // Check of point is inside y-domain
+            const contained = (point) => 
+                point[1] >= domain.y[0] &&
+                point[1] <= domain.y[1];
+
+            
+            // Assuming b is outside the y-domain
+            const intersect = (domain, a, b) => {
+                let delta;
+                if (b[1] < domain.y[0]) {
+                    delta = domain.y[0] - b[1];
+                } else if (b[1] > domain.y[1]) {
+                    delta = domain.y[1] - b[1];
+                }
+
+                let slope = (b[0] - a[0]) /  (b[1] - a[1]);
+                let y = b[1] + delta;
+                let x = b[0] + delta * slope;
+
+                return [x, y];
+            };
+
+            return path.reduce(([paths, path, prevPoint, prevContained], point, i, arr) => {
+                const contains = contained(point);
+
+                if (prevPoint === null) {
+                    if (contains) {
+                        return [paths, [point], point, contains];
+                    } else {
+                        return [paths, [], point, contains];
+                    }
+                }
+
+                if (prevContained && !contains) {
+                    return [[...paths, [...path, intersect(domain, prevPoint, point)]], [], point, contains];
+                } else if (!prevContained && !contains) {
+                    return [paths, [], point, contains];
+                } else {
+                    let points;
+                    if (!prevContained && contains) {
+                        points = [intersect(domain, point, prevPoint), point];
+                    } else {
+                        points = [point];
+                    }
+
+                    if (i === arr.length - 1) {
+                        return [[...paths, [...path, ...points]], [], point, contains];
+                    }
+
+                    return [paths, [...path, ...points], point, contains];
+                }
+            }, [[], [], null, null])[0];
+        }
+
+        console.log(removeOutOfDomain(paths[0]));
+
+        paths = paths.reduce((acc, path) => [...acc, ...removeOutOfDomain(path)], [])
+                     .reduce((acc, path) => [...acc, ...splitAtAsympote(path)], []);
 
         const plotWidth = containerWidth * 0.8;
 
@@ -247,19 +305,8 @@ class FunctionPlot extends Component {
         const originFromDomain = (domain) => -domain[0] / (domain[1] - domain[0]);
         const originPos = [originFromDomain(xDomain), originFromDomain(yDomain)];
 
-        const clipMargin = 5;
-
         return <div>
             <svg width={containerWidth} height={containerHeight}>
-                <defs>
-                    <clipPath id='clip'>
-                        <rect 
-                            x={(containerWidth - plotWidth) / 2 - clipMargin}
-                            y={(containerHeight - plotHeight) / 2 - clipMargin}
-                            width={plotWidth + 2 * clipMargin}
-                            height={plotHeight + 2 * clipMargin}/>
-                    </clipPath>
-                </defs>
                 <g>
                     <Axis domain={xDomain} 
                         transform={transform}

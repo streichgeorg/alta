@@ -63,7 +63,7 @@ class Console extends Component {
 
         if (isFunctionDefinition(expr)) {
             // TODO: Consider functions that have arguments other than 'x'
-            const symbols = [['x', constant(1)]];
+            const symbols = expr.left.args.map(arg => [arg.name, constant(1)]);
             const funcStore = this.state.store.addScope(symbols);
 
             const { valid, error: exprError } = isValidExpression(expr.right, funcStore);
@@ -169,7 +169,7 @@ class Console extends Component {
                     <input className='TextInput' type='text' spellCheck='false'
                         value={this.state.inputValue}
                         onKeyPress={e => {
-                            if (e.key == 'Enter') {
+                            if (e.key === 'Enter') {
                                 this.onSubmit();
                             }
                         }}

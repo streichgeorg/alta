@@ -1,6 +1,6 @@
 import { zip, reversed, assert, createErrorType } from '../util';
 import { ExpressionTypes, InvalidExpression } from './expression';
-import { constant, isValue, isFunction, builtinFunc, FunctionTypes, ValueTypes, SymbolTypes, SymbolStore } from './symbolStore';
+import { constant, isValue, isFunction, builtinFunc, FunctionTypes, ValueTypes, SymbolTypes, SymbolStore, funcFromAssignment } from './symbolStore';
 
 const EPSILON = 0.00001;
 const apprxEqu = (a, b) => Math.abs(a - b) < EPSILON;
@@ -139,7 +139,9 @@ function evaluate(expr, store = defaultStore) {
 function evaluateFunction(args, expr, store) {
     const argSymbols = args.map(([name, value]) => [name, constant(value)]);
     const funcStore = store.addScope(argSymbols);
-    return evaluate(expr.right, funcStore);
+    const result = evaluate(expr.right, funcStore);
+
+    return result;
 }
 
 export { defaultStore, evaluate, evaluateFunction, EvalError, UndefinedSymbol };

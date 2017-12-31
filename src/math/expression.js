@@ -193,6 +193,14 @@ export function getParameters(e) {
         return params;
     }
 
+    if (isSummation(e)) {
+        const hiloParams = new Set([...getParameters(e.low), ...getParameters(e.high)]);
+        let exprParams = getParameters(e.expr);
+        exprParams.delete(e.counter);
+
+        return new Set([...hiloParams, ...exprParams]);
+    }
+
     const parameters = func(e);
 
     return new Set(parameters);

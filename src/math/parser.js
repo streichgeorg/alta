@@ -9,8 +9,6 @@ const ParseError = createErrorType('ParseError');
 const isDigit = (c) => c >= '0' && c <= '9';
 const isLetter = (c) => (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
 
-const HIGHEST_PREDECENCE = 1;
-
 const TokenTypes = {
     NUMBER: 0,
     IDENTIFIER: 1,

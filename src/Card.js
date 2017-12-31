@@ -7,7 +7,7 @@ import FunctionPlot from './FunctionPlot';
 import { assert } from './util';
 import { parse, ParseError } from './math/parser';
 import { evaluate, evaluateFunction, EvalError, UndefinedSymbol } from './math/evaluate';
-import { variable } from './math/symbolStore';
+import { variable, constant } from './math/symbolStore';
 import { identifier, expressionToString, simplify, getParameters } from './math/expression';
 
 const CardTypes = {
@@ -83,6 +83,7 @@ class Card extends Component {
             const params = getParameters(props.expr);
             let dependent = {};
             for (const param of params) {
+                console.log(param);
                 dependent[param] = evaluate(identifier(param), props.store);
             }
 
@@ -147,9 +148,22 @@ class Card extends Component {
     }
 
     renderFunction() {
-        // TODO: Consider params other than x
-        const func = x => evaluateFunction([['x', x]], this.props.expr, this.props.store);
         const str = expressionToString(this.props.expr);
+        const funcDef = this.props.expr.left;
+
+        if (funcDef.args.length > 1) {
+            console.warn('Cannot display funtion with more than one argument');
+
+            return <div>
+                <div className='FunctionTitle'>{str}</div>
+            </div>
+        }
+
+        const func = x => {
+            const symbol = [funcDef.args[0].name, x];
+            return evaluateFunction([symbol], this.props.expr, this.props.store);
+        };
+
         return <div>
             <div className='FunctionTitle'>{str}</div>
             <FunctionPlot domain={{x: [-10, 10], y: [-10, 10]}}  func={func}/>
