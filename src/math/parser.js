@@ -205,7 +205,6 @@ class Parser {
     parseFactorial() {
         const atom = this.parseFunction();
         if (this.testToken(TokenTypes.EXCLAMATION)) {
-            console.log('test');
             return factorial(atom);
         }
 

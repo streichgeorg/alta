@@ -1,15 +1,27 @@
-.Console {
+.Console, .OuterContainer {
+    width: 700px;
     min-height: 100vh;
     max-height: 100vh;
-    width: 700px;
-    min-width: 500px;
+}
 
-    display: flex;
-    flex-direction: column;
+.OuterContainer {
+    position: relative;
+    overflow: hidden;
+}
+
+.InnerContainer {
+    position: absolute;
+    left: 0;
+    overflow-y: scroll;
+    overflow-x: hidden;
 
     background-color: #FFFAFF;
 
-    overflow-y: scroll;
+}
+
+.Console {
+    display: flex;
+    flex-direction: column;
 }
 
 .Buffer {
@@ -52,7 +64,7 @@
 }
 
 .Seperator {
-    background-color: black;
+    background-color: #0D1B2A;
     height: 2px;
     width: 90%;
     margin: 0 auto;

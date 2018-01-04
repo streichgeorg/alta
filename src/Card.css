@@ -7,6 +7,21 @@
 
 .FunctionTitle {
     margin-left: 100px;
-    margin-bottom: 30px;
     margin-top: 30px;
+}
+
+.Footer {
+    margin-left: 100px;
+    margin-bottom: 20px;
+}
+
+.FooterText {
+    margin-right: 10px;
+    font-size: 0.5em;
+    color: #3E92CC;
+    user-select: none;
+}
+
+.FooterText:hover {
+    color: #CC2936;
 }

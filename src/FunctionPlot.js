@@ -199,11 +199,11 @@ class FunctionPlot extends Component {
     render() {
         const containerWidth = this.props.containerWidth;
 
-        const { numSamples = 500, propsDomain = [-10, 10] } = this.props;
+        const { numSamples = 500, propsXDomain = [-10, 10], propsYDomain = [-5, 5]} = this.props;
 
-        const xDomain = [propsDomain[0] + this.state.delta[0], propsDomain[1] + this.state.delta[0]];
+        const xDomain = [propsXDomain[0] + this.state.delta[0], propsXDomain[1] + this.state.delta[0]];
         // TODO: Find a good starting offset in the constructor
-        const yDomain = [propsDomain[0] - this.state.delta[1], propsDomain[1] - this.state.delta[1]];
+        const yDomain = [propsYDomain[0] - this.state.delta[1], propsYDomain[1] - this.state.delta[1]];
 
         const domain = {x: xDomain, y: yDomain};
 

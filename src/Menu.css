@@ -20,13 +20,9 @@
     padding-left: 30px;
 }
 
-.MenuText:hover {
-    padding-left: 50px;
-}
-
-.AboutText {
+.SmallText {
     padding: 10px;
-    padding-left: 30px;
+    padding-left: 50px;
     font-size: 0.8em;
 }
 

@@ -1,39 +1,59 @@
 import React, { Component } from 'react';
 import './Menu.css';
 
-class Menu extends Component {
+import { range } from './util';
+
+class Section extends Component {
     constructor(props) {
         super(props);
 
-        this.state = {
-            helpExpanded: false
-        }
+        this.state = {toggled: false};
 
-        this.expandAbout = this.expandAbout.bind(this);
+        this.toggle = this.toggle.bind(this);
     }
 
-    expandAbout() {
+    toggle() {
         this.setState({
-            ...this.state,
-            aboutExpanded: !this.state.aboutExpanded 
+            toggled: !this.state.toggled
         });
     }
 
     render() {
+        return <div className='MenutItem'>
+            <p className='MenuText' onClick={this.toggle}>{this.props.title}</p>
+            {this.state.toggled &&
+                this.props.children
+            }
+        </div>
+    }
+}
+
+class Menu extends Component {
+    render() {
         return <div className='Menu'>
             <div className='MenuTitle'>ALTA</div>
-            <div className='MenuItem' >
-                <p className='MenuText' onClick={this.expandAbout}>About</p>
-                { this.state.aboutExpanded &&
-                    <div className='AboutText'>
-                        With alta you can evaluate mathematical expressions and plot funtions. 
-                        There are some pre defined funtions and constants but you can also 
-                        define your own symbols. You can define and plot your own functions 
-                        with &lt;name&gt;(&lt;args&gt;) = &lt;expr&gt; and your own variables 
-                        with &lt;name&gt; = &lt;expr&gt;.
-                    </div>
-                } 
-            </div>
+            <Section title='Examples'>
+                <p className='SmallText' onClick={() => this.props.addCards(['f(x)=e^x'])}>Exponential</p>
+                <p className='SmallText'
+                    onClick={() =>{
+                        this.props.addCards(['r=10', 'f(x) = sqrt(r^2- x^2)'])
+                    }
+                }>
+                    Half circle
+                </p>
+                <p className='SmallText'
+                    onClick={() =>{
+                        this.props.addCards(['n=10', 'f(x) = sum(i, 0, n, ((-1)^i*x^(2*i+1))/((2*i+1)!))'])
+                    }
+                }>
+                    Summation
+                </p>
+            </Section>
+            <Section title='About'>
+                <div className='SmallText'>
+                    Use alta to evaluate and plot mathematical expressions.
+                </div>
+            </Section>
         </div>
     }
 

@@ -83,12 +83,14 @@ class Card extends Component {
             const params = getParameters(props.expr);
             let dependent = {};
             for (const param of params) {
-                console.log(param);
                 dependent[param] = evaluate(identifier(param), props.store);
             }
 
-            this.state = {dependent};
+            this.state = {
+                dependent
+            };
         }
+
     }
 
     componentWillReceiveProps(nextProps) {
@@ -193,7 +195,13 @@ class Card extends Component {
                 assert(false);
         }
 
-        return <div>{inner}</div>;
+        return <div>
+            {inner}
+
+            <div className='Footer'>
+                <a className='FooterText' onClick={this.props.remove}>Delete</a>
+            </div>
+        </div>;
     }
 }
 

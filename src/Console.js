@@ -23,7 +23,7 @@ class Console extends Component {
         this.setSymbol = this.setSymbol.bind(this);
     }
 
-    evalInput(input) {
+    evalInput(input, currentState) {
         const parseInput = (value) => {
             try {
                 return {expr: parse(value)};
@@ -43,7 +43,7 @@ class Console extends Component {
             return {card};
         }
 
-        const isValidExpression = (value, store = this.state.store) => {
+        const isValidExpression = (value, store = currentState.store) => {
             try {
                 evaluate(value, store);
                 simplify(expr);
@@ -64,7 +64,7 @@ class Console extends Component {
         if (isFunctionDefinition(expr)) {
             // TODO: Consider functions that have arguments other than 'x'
             const symbols = expr.left.args.map(arg => [arg.name, constant(1)]);
-            const funcStore = this.state.store.addScope(symbols);
+            const funcStore = currentState.store.addScope(symbols);
 
             const { valid, error: exprError } = isValidExpression(expr.right, funcStore);
 
@@ -106,21 +106,21 @@ class Console extends Component {
         return {card};
     }
 
-    stateWithNewCard(input) {
-        const {card, symbol = null} = this.evalInput(input);
+    stateWithNewCard(input, currentState) {
+        const {card, symbol = null} = this.evalInput(input, currentState);
 
-        let newStore = this.state.store;
-        let newCard = {...card, storePosition: this.state.store.scopes.length};
+        let newStore = currentState.store;
+        let newCard = {...card, storePosition: currentState.store.scopes.length};
 
         if (symbol) {
-            newStore = this.state.store.addScope([symbol]);
+            newStore = currentState.store.addScope([symbol]);
         }
 
-        const cards = [...this.state.cards, newCard];
+        const cards = [...currentState.cards, newCard];
 
 
         return {
-            ...this.state,
+            ...currentState,
             cards,
             store: newStore
         };
@@ -144,38 +144,63 @@ class Console extends Component {
 
         this.setState({
             ...this.state,
-            ...this.stateWithNewCard(this.state.inputValue),
+            ...this.stateWithNewCard(this.state.inputValue, this.state),
             inputValue: ''
+        });
+    }
+
+    addCards(inputs) {
+        let newState = this.state;
+        for (let input of inputs) {
+            newState = this.stateWithNewCard(input, newState)
+            console.log(newState);
+        }
+
+        this.setState({
+            ...this.state,
+            ...newState
+        });
+    }
+
+    removeCard(id) {
+
+    }
+
+    componentDidMount() {
+        this.props.registerMethods({
+            addCards: this.addCards.bind(this)
         });
     }
 
     render() {
         const cards = this.state.cards.map((card, i) =>
             <div key={i}>
-                {i !== 0 && 
-                    <div className='Seperator'></div>
-                }
-                <Card store={this.state.store.setPosition(card.storePosition)} setSymbol={this.setSymbol} {...card}/>
+                <Card remove={() => this.removeCard(i)} store={this.state.store.setPosition(card.storePosition)} setSymbol={this.setSymbol} {...card}/>
+                <div className='Seperator'></div>
             </div>
         );
 
-        return <div className='Console'>
-            {cards}
+        return <div className='OuterContainer'>
+            <div className='InnerContainer'>
+            <div className='Console'>
+                {cards}
 
-            <div className='Buffer'></div>
+                <div className='Buffer'></div>
 
-            <div className='InputCard'>
-                <div className='Input'>
-                    <input className='TextInput' type='text' spellCheck='false'
-                        value={this.state.inputValue}
-                        onKeyPress={e => {
-                            if (e.key === 'Enter') {
-                                this.onSubmit();
-                            }
-                        }}
-                        onChange={this.onInputChanged} />
-                    <input className='SubmitButton' type='button' value='Submit' onClick={this.onSubmit} />
+                <div className='InputCard'>
+                    <div className='Input'>
+                        <input className='TextInput' type='text' spellCheck='false'
+                            value={this.state.inputValue}
+                            onKeyPress={e => {
+                                if (e.key === 'Enter') {
+                                    this.onSubmit();
+                                }
+                            }}
+                            onChange={this.onInputChanged} />
+                        <input className='SubmitButton' type='button' value='Submit' onClick={this.onSubmit} />
+                    </div>
                 </div>
+            </div>
             </div>
         </div>
     }
